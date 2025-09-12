@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from OthelloAction import OthelloAction
 
@@ -65,7 +66,7 @@ class OthelloPosition(object):
         self.board[mid + 1][mid] = "B"
         self.maxPlayer = True
 
-    def make_move(self, action: OthelloAction):
+    def make_move(self, action: OthelloAction) -> OthelloPosition:
         """
         Perform the move suggested by the OhelloAction action and return the new position. Observe that this also
         changes the player to move next.
@@ -77,6 +78,25 @@ class OthelloPosition(object):
             The OthelloPosition resulting from making the move action in the current position.
         """
         # TODO: write the code for this method and whatever helper methods it need
+
+        current_player = "W" if self.maxPlayer else "B"
+
+        for dr, dc in self.DIRS:
+            capture = self.__captures_in_direction(action.row, action.col, dr, dc)
+
+            if capture:
+                i = 1
+                row = action.row + dr * i
+                col = action.col + dc * i
+
+                while self.__is_opp_coin(row, col):
+                    self.board[row, col] = current_player
+                    i = i + 1
+
+        self.board[action.row, action.col] = current_player
+        self.maxPlayer = not self.maxPlayer
+
+        return self
 
     def get_moves(self) -> list[OthelloAction]:
         """

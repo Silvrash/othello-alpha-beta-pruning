@@ -30,3 +30,12 @@ class OthelloAction(object):
             print("pass")
         else:
             print("(" + str(self.row) + "," + str(self.col) + ")")
+
+    def __str__(self):
+        if self.is_pass_move:
+            return "pass"
+        else:
+            return f"({self.row},{self.col})"
+    
+    def __repr__(self):
+        return self.__str__()
