@@ -55,6 +55,7 @@ class AlphaBeta(OthelloAlgorithm):
         return best_node.action
 
     def max_value(self, node: OthelloNode, alpha: float, beta: float) -> OthelloNode:
+        # print('computing max')
         self.__force_stop_if_time_elapsed()
         possible_moves = node.state.get_moves()
 
@@ -64,15 +65,14 @@ class AlphaBeta(OthelloAlgorithm):
             return node
 
         node.action.value = float("-inf")
+        max_node = node
         depth = node.depth + 1
 
         for action in possible_moves:
             # print(f"depth={node.depth}, player={'W' if node.state.maxPlayer else 'B'}, move=({action.row, action.col})")
-            child_node = OthelloNode(node.state, depth, action)
-            # child_node.state.print_board()
-            # action.print_move()
-            node = max(
-                node,
+            child_node = OthelloNode(node.state, depth, action, node)
+            max_node = max(
+                max_node,
                 self.min_value(child_node, alpha, beta),
                 key=lambda obj: obj.action.value,
             )
@@ -82,9 +82,10 @@ class AlphaBeta(OthelloAlgorithm):
                 # cut off
                 break
 
-        return node
+        return max_node
 
     def min_value(self, node: OthelloNode, alpha: float, beta: float) -> OthelloNode:
+        # print("computing min")
         self.__force_stop_if_time_elapsed()
         possible_moves = node.state.get_moves()
 
@@ -94,17 +95,18 @@ class AlphaBeta(OthelloAlgorithm):
             return node
 
         node.action.value = float("inf")
+        min_node = node
         depth = node.depth + 1
 
         for action in possible_moves:
             # print(
             #     f"depth={node.depth}, player={'W' if node.state.maxPlayer else 'B'}, move=({action.row, action.col})"
             # )
-            child_node = OthelloNode(node.state, depth, action)
+            child_node = OthelloNode(node.state, depth, action, node)
             # child_node.state.print_board()
             # action.print_move()
-            node = min(
-                node,
+            min_node = min(
+                min_node,
                 self.max_value(child_node, alpha, beta),
                 key=lambda obj: obj.action.value,
             )
@@ -113,7 +115,7 @@ class AlphaBeta(OthelloAlgorithm):
             if alpha >= beta:
                 # cut off
                 break
-        return node
+        return min_node
 
     def __is_leaf(self, moves: list[OthelloAction]):
         return not moves

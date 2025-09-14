@@ -26,11 +26,9 @@ class Othello(object):
             time_limit = float(sys.argv[2])
         else:
             posString = (
-                # "BEXEXOOOXEEXXOEXEEEEOOXOEEEOOOEEEEOOOOEEEEEXOEEEEEEEEEEEEEEEEEEEE"
-                "WEEEEEEEEEEOEEEEEEEEOOXEEEEEXXEEEEEEXOEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-                # (3,3)
+                "BEXEXOOOXEEXXOEXEEEEOOXOEEEOOOEEEEOOOOEEEEEXOEEEEEEEEEEEEEEEEEEEE"
             )
-            time_limit = 5
+            time_limit = 0.4
 
     start = time.time()
     pos = OthelloPosition(posString)
@@ -38,8 +36,7 @@ class Othello(object):
     # pos.print_board() # Only for debugging. The test script has it's own print
 
     # TODO: implement Iterative Deepening Search
-
-    best_move = None
+    best_move = OthelloAction(0, 0, True)
     depth = 1
     # Which evaluator (heuristics) should be used
     algorithm = AlphaBeta(CountingEvaluator())
@@ -54,22 +51,19 @@ class Othello(object):
         root = OthelloNode(pos)
         try:
             move = algorithm.evaluate(root)
+            depth += 1
 
             if not best_move or move.value > best_move.value:
                 best_move = move
-            
-            depth += 1
-            
+
         except StopSignal:
             # time expired
             break
 
 
     # Send the chosen move to stdout (print it)
-    if best_move:
-        best_move.print_move()
+    best_move.print_move()
+    # print(best_move.value)
 
     end = time.time()
-# (6, 4)
-    root.state.make_move(best_move).print_board()
     # print(end - start, f'max-depth reached: {depth}') # Only for debugging, print nothing but the move in the final version
