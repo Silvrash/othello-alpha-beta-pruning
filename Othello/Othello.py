@@ -36,7 +36,7 @@ class Othello(object):
     # pos.print_board() # Only for debugging. The test script has it's own print
 
     # TODO: implement Iterative Deepening Search
-    best_move = OthelloAction(0, 0, True)
+    best_move = None
     depth = 1
     # Which evaluator (heuristics) should be used
     algorithm = AlphaBeta(CountingEvaluator())
@@ -60,6 +60,9 @@ class Othello(object):
             # time expired
             break
 
+
+    if not best_move:
+        best_move = OthelloAction(0, 0, True)
 
     # Send the chosen move to stdout (print it)
     best_move.print_move()
