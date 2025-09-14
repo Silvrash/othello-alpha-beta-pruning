@@ -3,6 +3,9 @@ import numpy as np
 from OthelloAction import OthelloAction
 
 
+EMPTY_PLACEHOLDER = "-"
+
+
 class OthelloPosition(object):
     """
     This class is used to represent game positions. It uses a 2-dimensional char array for the board
@@ -41,7 +44,7 @@ class OthelloPosition(object):
 
         # Use dtype='U1' (1-char Unicode) to keep memory small & fast.
         self.board = np.full(
-            (self.BOARD_SIZE + 2, self.BOARD_SIZE + 2), "E", dtype="U1"
+            (self.BOARD_SIZE + 2, self.BOARD_SIZE + 2), EMPTY_PLACEHOLDER, dtype="U1"
         )
         if len(board_str) >= 65:
             # Set player to move
@@ -79,6 +82,15 @@ class OthelloPosition(object):
         """
         # TODO: write the code for this method and whatever helper methods it need
 
+        # if the move is a pass move, we just change the player to move next
+        if action.is_pass_move:
+            self.maxPlayer = not self.maxPlayer
+            return self
+
+        is_legal_move = self.__is_move(action.row, action.col)
+        if not is_legal_move:
+            raise ValueError("IllegalMoveException")
+
         current_player = "W" if self.maxPlayer else "B"
 
         for dr, dc in self.DIRS:
@@ -86,11 +98,11 @@ class OthelloPosition(object):
 
             if capture:
                 i = 1
-                row = action.row + dr * i
-                col = action.col + dc * i
+                while self.__is_opp_coin(action.row + dr * i, action.col + dc * i):
+                    self.board[action.row + dr * i, action.col + dc * i] = (
+                        current_player
+                    )
 
-                while self.__is_opp_coin(row, col):
-                    self.board[row, col] = current_player
                     i = i + 1
 
         self.board[action.row, action.col] = current_player
@@ -139,7 +151,7 @@ class OthelloPosition(object):
         c += dc
         # Walk until we find own or empty/border (no capture)
         while 1 <= r <= size and 1 <= c <= size:
-            if self.board[r, c] == "E":
+            if self.board[r, c] == EMPTY_PLACEHOLDER:
                 return False
             if self.__is_own_coin(r, c):
                 return True
@@ -158,7 +170,9 @@ class OthelloPosition(object):
         Returns:
              True if it is a candidate
         """
-        return self.board[row][col] == "E" and self.__has_neighbour(row, col)
+        return self.board[row][col] == EMPTY_PLACEHOLDER and self.__has_neighbour(
+            row, col
+        )
 
     def __is_move(self, row: int, col: int) -> bool:
         """
@@ -224,12 +238,12 @@ class OthelloPosition(object):
         Returns:
             True if it has neighbours
         """
-        if self.board[row, col] != "E":
+        if self.board[row, col] != EMPTY_PLACEHOLDER:
             return False
         b = self.board
         # Check the 8 surrounding squares
         for dr, dc in self.DIRS:
-            if b[row + dr, col + dc] != "E":
+            if b[row + dr, col + dc] != EMPTY_PLACEHOLDER:
                 return True
         return False
 

@@ -7,7 +7,7 @@ from OthelloEvaluator import OthelloEvaluator
 
 
 class CountingEvaluator(OthelloEvaluator):
-    def evaluate(self, othello_position):
+    def evaluate(self, othello_position) -> float:
         black_squares = 0
         white_squares = 0
         for row in othello_position.board:
@@ -16,5 +16,5 @@ class CountingEvaluator(OthelloEvaluator):
                     white_squares += 1
                 if item == 'B':
                     black_squares += 1
-        print(f"white_squares: {white_squares}, black_squares: {black_squares}")
+        # print(f"white_squares: {white_squares}, black_squares: {black_squares}")
         return white_squares - black_squares
