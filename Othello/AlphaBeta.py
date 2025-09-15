@@ -1,4 +1,5 @@
 import time
+from OthelloPosition import OthelloPosition
 from OthelloNode import OthelloNode
 from OthelloAlgorithm import OthelloAlgorithm
 from CountingEvaluator import CountingEvaluator
@@ -7,6 +8,7 @@ from OthelloAction import OthelloAction
 
 class StopSignal(Exception):
     pass
+
 
 class AlphaBeta(OthelloAlgorithm):
     """
@@ -41,81 +43,85 @@ class AlphaBeta(OthelloAlgorithm):
         self.time_limit = time_limit
 
     def __force_stop_if_time_elapsed(self):
-        if self.start_time and self.time_limit and time.time() - self.start_time >= self.time_limit:
+        if (
+            self.start_time
+            and self.time_limit
+            and time.time() - self.start_time >= self.time_limit
+        ):
             raise StopSignal
         else:
             pass
 
-    def evaluate(self, node: OthelloNode) -> OthelloAction:
+    def evaluate(self, othello_position: OthelloPosition) -> OthelloAction:
         # TODO: implement the alpha-beta algorithm
         alpha = float("-inf")
         beta = float("inf")
         # print('\n starting')
-        best_node = self.max_value(node, alpha, beta)
-        return best_node.action
+        return self.max_value(othello_position, alpha, beta, 0)
 
-    def max_value(self, node: OthelloNode, alpha: float, beta: float) -> OthelloNode:
+    def max_value(
+        self, pos: OthelloPosition, alpha: float, beta: float, depth: int
+    ) -> OthelloAction:
         # print('computing max')
         self.__force_stop_if_time_elapsed()
-        possible_moves = node.state.get_moves()
+        possible_moves = pos.get_moves()
+        final_action = OthelloAction(0, 0, True)
 
-        if self.__is_leaf(possible_moves) or node.depth >= self.search_depth:
-            value = self.evaluator.evaluate(node.state)
-            node.action.value = value
-            return node
+        # print(f"max possible {possible_moves}")
 
-        node.action.value = float("-inf")
-        max_node = node
-        depth = node.depth + 1
+        if self.__is_leaf(possible_moves) or depth >= self.search_depth:
+            value = self.evaluator.evaluate(pos)
+            final_action.value = value
+            return final_action
+
+        value = float("-inf")
+        final_action.value = value
 
         for action in possible_moves:
-            # print(f"depth={node.depth}, player={'W' if node.state.maxPlayer else 'B'}, move=({action.row, action.col})")
-            child_node = OthelloNode(node.state, depth, action, node)
-            max_node = max(
-                max_node,
-                self.min_value(child_node, alpha, beta),
-                key=lambda obj: obj.action.value,
-            )
-            alpha = max(alpha, node.action.value)
+            action_pos = pos.clone().make_move(action)
+
+            val = self.min_value(action_pos, alpha, beta, depth + 1)
+
+            if val.value > final_action.value:
+                action.value += val.value
+                final_action = action
+
+            alpha = max(alpha, final_action.value)
 
             if alpha >= beta:
                 # cut off
                 break
 
-        return max_node
+        return final_action
 
-    def min_value(self, node: OthelloNode, alpha: float, beta: float) -> OthelloNode:
+    def min_value(self, pos: OthelloPosition, alpha: float, beta: float, depth: int) -> OthelloAction:
         # print("computing min")
         self.__force_stop_if_time_elapsed()
-        possible_moves = node.state.get_moves()
+        possible_moves = pos.get_moves()
+        value = float("inf")
+        final_action = OthelloAction(0, 0, True)
 
-        if self.__is_leaf(possible_moves) or node.depth >= self.search_depth:
-            value = self.evaluator.evaluate(node.state)
-            node.action.value = value
-            return node
+        if self.__is_leaf(possible_moves) or depth >= self.search_depth:
+            value = self.evaluator.evaluate(pos)
+            final_action.value = value
+            return final_action
 
-        node.action.value = float("inf")
-        min_node = node
-        depth = node.depth + 1
-
+        
         for action in possible_moves:
-            # print(
-            #     f"depth={node.depth}, player={'W' if node.state.maxPlayer else 'B'}, move=({action.row, action.col})"
-            # )
-            child_node = OthelloNode(node.state, depth, action, node)
-            # child_node.state.print_board()
-            # action.print_move()
-            min_node = min(
-                min_node,
-                self.max_value(child_node, alpha, beta),
-                key=lambda obj: obj.action.value,
-            )
-            beta = min(beta, node.action.value)
+            action_pos = pos.clone().make_move(action)
+
+            val = self.max_value(action_pos, alpha, beta, depth + 1)
+
+            if val.value < final_action.value:
+                action.value += val.value
+                final_action = action
+
+            beta = min(beta, final_action.value)
 
             if alpha >= beta:
                 # cut off
                 break
-        return min_node
+        return final_action
 
     def __is_leaf(self, moves: list[OthelloAction]):
         return not moves

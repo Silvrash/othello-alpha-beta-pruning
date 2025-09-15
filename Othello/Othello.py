@@ -26,9 +26,9 @@ class Othello(object):
             time_limit = float(sys.argv[2])
         else:
             posString = (
-                "BEXEXOOOXEEXXOEXEEEEOOXOEEEOOOEEEEOOOOEEEEEXOEEEEEEEEEEEEEEEEEEEE"
+                "BEEEEEEEEEEEEEEEEEEEEOEEEEEEOOEEEEEEXOEEEEEEEEEEEEEEEEEEEEEEEEEEE"
             )
-            time_limit = 0.4
+            time_limit = 1
 
     start = time.time()
     pos = OthelloPosition(posString)
@@ -49,8 +49,9 @@ class Othello(object):
 
         # Evaluate the position
         root = OthelloNode(pos)
+        # print(root.state.get_moves())
         try:
-            move = algorithm.evaluate(root)
+            move = algorithm.evaluate(pos)
             depth += 1
 
             if not best_move or move.value > best_move.value:
@@ -67,6 +68,7 @@ class Othello(object):
     # Send the chosen move to stdout (print it)
     best_move.print_move()
     # print(best_move.value)
-
+    # print(pos.get_moves())
+    # pos.print_board()
     end = time.time()
     # print(end - start, f'max-depth reached: {depth}') # Only for debugging, print nothing but the move in the final version

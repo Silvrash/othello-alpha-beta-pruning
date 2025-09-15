@@ -18,3 +18,12 @@ class CountingEvaluator(OthelloEvaluator):
                     black_squares += 1
         # print(f"white_squares: {white_squares}, black_squares: {black_squares}")
         return white_squares - black_squares
+
+    def is_mid_game(self):
+        pass
+
+    def is_early_game(self):
+        pass
+
+    def is_late_game(self):
+        pass
