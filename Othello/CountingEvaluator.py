@@ -1,3 +1,4 @@
+from OthelloPosition import OthelloPosition
 from OthelloEvaluator import OthelloEvaluator
 
 """
@@ -7,7 +8,14 @@ from OthelloEvaluator import OthelloEvaluator
 
 
 class CountingEvaluator(OthelloEvaluator):
-    def evaluate(self, othello_position) -> float:
+    corners = [(1, 1), (1, 8), (8, 1), (8, 8)]
+    x_squares = [(2, 2), (2, 7), (7, 2), (7, 7)]
+    c_squares = [(1, 2), (2, 1), (7, 1), (8, 2), (8, 7), (8, 7), (1, 7), (2, 8)]
+    edges = []
+
+
+
+    def evaluate(self, othello_position: OthelloPosition) -> float:
         black_squares = 0
         white_squares = 0
         for row in othello_position.board:
@@ -52,16 +60,17 @@ class CountingEvaluator(OthelloEvaluator):
         """
         pass
 
-    def number_at_corner(self):
+    def is_corner(self, row, col):
         """
         corners on the board. once a member is placed at the corner, it can never be flipped
         corners = (1, 1), (1, 8), (8, 1), (8, 8)
 
         highly advantageous
         """
-        pass
+        
+        return (row, col) in self.corners
 
-    def x_squares(self):
+    def is_x_squares(self, row, col):
         """
         The diagonal squares next to corners.
         This is a dangerous position because if you take those positions before your opponent, it's very easy for
@@ -70,23 +79,24 @@ class CountingEvaluator(OthelloEvaluator):
 
         highly dangerous
         """
-        pass
+        return (row, col) in self.x_squares
 
-    def c_squares(self):
+    def is_c_squares(self, row, col):
         """
         squares directly beside the corners.
         (1, 2), (2, 1), (7, 1), (8, 2), (8, 7), (8, 7), (1, 7), (2, 8)
         In early game, try to avoid them because you risk giving up a corner
         """
-        pass
+        return (row, col) in self.c_squares
 
-    def middle_squares(self):
+    def is_middle_squares(self, row, col):
         """
         all squares that are not corners, edges, x squares and c squares
         """
-        pass
+        return (row, col) not in (self.c_squares + self.x_squares + self.corners + self.edges)
 
     def stable_discs(self):
         """
         pieces that cannot be flipped
         """
+        pass
