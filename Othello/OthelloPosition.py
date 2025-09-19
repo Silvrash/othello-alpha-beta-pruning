@@ -82,33 +82,36 @@ class OthelloPosition(object):
         """
         # TODO: write the code for this method and whatever helper methods it need
 
+        # TODO: write the code for this method and whatever helper methods it need
+
+        new_pos = self.clone()
         # if the move is a pass move, we just change the player to move next
         if action.is_pass_move:
-            self.maxPlayer = not self.maxPlayer
-            return self
+            new_pos.maxPlayer = not new_pos.maxPlayer
+            return new_pos
 
-        is_legal_move = self.__is_move(action.row, action.col)
+        is_legal_move = new_pos.__is_move(action.row, action.col)
         if not is_legal_move:
             raise ValueError("IllegalMoveException")
 
-        current_player = "W" if self.maxPlayer else "B"
+        current_player = "W" if new_pos.maxPlayer else "B"
 
         for dr, dc in self.DIRS:
-            capture = self.__captures_in_direction(action.row, action.col, dr, dc)
+            capture = new_pos.__captures_in_direction(action.row, action.col, dr, dc)
 
             if capture:
                 i = 1
-                while self.__is_opp_coin(action.row + dr * i, action.col + dc * i):
-                    self.board[action.row + dr * i, action.col + dc * i] = (
+                while new_pos.__is_opp_coin(action.row + dr * i, action.col + dc * i):
+                    new_pos.board[action.row + dr * i, action.col + dc * i] = (
                         current_player
                     )
 
                     i = i + 1
 
-        self.board[action.row, action.col] = current_player
-        self.maxPlayer = not self.maxPlayer
+        new_pos.board[action.row, action.col] = current_player
+        new_pos.maxPlayer = not new_pos.maxPlayer
 
-        return self
+        return new_pos
 
     def get_moves(self) -> list[OthelloAction]:
         """

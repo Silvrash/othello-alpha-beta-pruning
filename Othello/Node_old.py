@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import List
+from OthelloPosition import OthelloPosition
+from OthelloAction import OthelloAction
 
 
-class OthelloNode(object):
+class Node(OthelloAction):
     """
     This class represents a node in the game tree.
     action: the action applied to get to this node
@@ -11,29 +13,41 @@ class OthelloNode(object):
     parent: previous node
     """
 
-    def __init__(self, name: str='', value=0):
+    def __init__(
+        self,
+        row=None,
+        col=None,
+        is_pass_move=None,
+        othello_position: OthelloPosition=None,
+        value=float("-inf"),
+        name=None,
+    ):
+        super().__init__(row, col, is_pass_move)
         self.name = name
+        self.othello_position = othello_position
         self.depth = 1
-        self.value = value
         self.parent = None
-        self.children: List[OthelloNode] = []
         self.best_child = None
+        self.value = value
+        self.children: List[Node] = []
+
+    # @property
+    # def children(self):
+    #     return self.othello_position.get_moves()
 
     def set_depth(self, depth):
         self.depth = depth
 
-    def add_child(self, node: OthelloNode):
+    def add_child(self, node: Node):
         node.depth = self.depth + 1
         node.parent = self
         self.children.append(node)
-        # Update depths of all descendants
-        self._update_descendant_depths(node)
 
-    def set_best_child(self, node: OthelloNode):
+    def set_best_child(self, node: Node):
         self.best_child = node
         self.value = node.value
 
-    def _update_descendant_depths(self, node: OthelloNode):
+    def _update_descendant_depths(self, node: Node):
         """Recursively update depths of all descendants"""
         for child in node.children:
             child.depth = node.depth + 1
