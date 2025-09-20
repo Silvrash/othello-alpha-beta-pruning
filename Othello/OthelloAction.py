@@ -19,7 +19,7 @@ class OthelloAction(object):
         self.row = row
         self.col = col
         self.is_pass_move = is_pass_move
-        self.value = 0
+        self.value = float("-inf")
 
     def print_move(self):
         """

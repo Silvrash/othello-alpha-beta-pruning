@@ -48,11 +48,15 @@ class AlphaBeta(OthelloAlgorithm):
             raise StopSignal()
 
     def evaluate(self, othello_position: OthelloPosition) -> OthelloAction:
-        root = Node(othello_position, self.search_depth, None)
-        if root.best_move is None:
-            return OthelloAction(0, 0, True)  # if no best moves passing
-        # print("\n\nBEST MOVE", root.best_move)
-        return root.best_move
+        # root = Node(othello_position, self.search_depth, None, evaluator=self.evaluator)
+        # if root.best_move is None:
+        #     return OthelloAction(0, 0, True)  # if no best moves passing
+        # # print("\n\nBEST MOVE", root.best_move)
+        # return root.best_move
+        if othello_position.maxPlayer:
+            return self.max_value(othello_position, float("-inf"), float("inf"), 1)
+        else:
+            return self.min_value(othello_position, float("-inf"), float("inf"), 1)
 
     def max_value(
         self, pos: OthelloPosition, alpha: float, beta: float, depth: int
@@ -60,8 +64,11 @@ class AlphaBeta(OthelloAlgorithm):
         self.__force_stop_if_time_elapsed()
         possible_moves = pos.get_moves()
 
-        # If leaf (no moves or reached depth) return a "value-only" action
-        if self.__is_leaf(possible_moves) or depth >= self.search_depth:
+        is_leaf = not possible_moves
+        is_max_depth = depth == self.search_depth
+
+        # If no legal moves or reached max depth, evaluate the node
+        if is_leaf or is_max_depth:
             val = self.evaluator.evaluate(pos)
             leaf = OthelloAction(0, 0, True)
             leaf.value = val
@@ -71,27 +78,21 @@ class AlphaBeta(OthelloAlgorithm):
         best_action = None
 
         for action in possible_moves:
-            child_pos = pos.clone().make_move(action)
+            self.__force_stop_if_time_elapsed()
+            child_pos = pos.make_move(action)
             child_eval_action = self.min_value(child_pos, alpha, beta, depth + 1)
             child_value = child_eval_action.value
 
             # choose the maximum
             if child_value > best_value:
                 best_value = child_value
-                # create a fresh action to return (avoid mutating original action objects)
-                best_action = OthelloAction(action.row, action.col, action.is_pass_move)
+                best_action = action
                 best_action.value = child_value
 
             # update alpha
             alpha = max(alpha, best_value)
             if alpha >= beta:
                 break  # beta cutoff
-
-        # If no legal moves found (defensive), return pass
-        if best_action is None:
-            pass_action = OthelloAction(0, 0, True)
-            pass_action.value = self.evaluator.evaluate(pos)
-            return pass_action
 
         return best_action
 
@@ -101,7 +102,11 @@ class AlphaBeta(OthelloAlgorithm):
         self.__force_stop_if_time_elapsed()
         possible_moves = pos.get_moves()
 
-        if self.__is_leaf(possible_moves) or depth >= self.search_depth:
+        is_leaf = not possible_moves
+        is_max_depth = depth == self.search_depth
+
+        # If no legal moves(is_leaf) or reached max depth, evaluate the node
+        if is_leaf or is_max_depth:
             val = self.evaluator.evaluate(pos)
             leaf = OthelloAction(0, 0, True)
             leaf.value = val
@@ -111,14 +116,15 @@ class AlphaBeta(OthelloAlgorithm):
         best_action = None
 
         for action in possible_moves:
-            child_pos = pos.clone().make_move(action)
+            self.__force_stop_if_time_elapsed()
+            child_pos = pos.make_move(action)
             child_eval_action = self.max_value(child_pos, alpha, beta, depth + 1)
             child_value = child_eval_action.value
 
             # choose the minimum
             if child_value < best_value:
                 best_value = child_value
-                best_action = OthelloAction(action.row, action.col, action.is_pass_move)
+                best_action = action
                 best_action.value = child_value
 
             # update beta
@@ -126,12 +132,4 @@ class AlphaBeta(OthelloAlgorithm):
             if alpha >= beta:
                 break  # alpha cutoff
 
-        if best_action is None:
-            pass_action = OthelloAction(0, 0, True)
-            pass_action.value = self.evaluator.evaluate(pos)
-            return pass_action
-
         return best_action
-
-    def __is_leaf(self, moves: list[OthelloAction]):
-        return not moves

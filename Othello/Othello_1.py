@@ -2,8 +2,8 @@ import time
 import sys
 from OthelloAction import OthelloAction
 from OthelloPosition import OthelloPosition
-from AlphaBeta import AlphaBeta, StopSignal
-from PrimaryEvaluator import PrimaryEvaluator
+from AlphaBeta_1 import AlphaBeta, StopSignal
+from CountingEvaluator import CountingEvaluator
 
 import math
 import time
@@ -33,51 +33,40 @@ class Othello(object):
             time_limit = 1
 
     start = time.time()
-
-    # if posString[0] == "B":
-    #     # Flip black and white pieces
-    #     posString = "W" + posString[1:].replace("X", "t").replace("O", "X").replace("t", "O")
+    if posString[0] == "B":
+        # Flip black and white pieces
+        posString = "W" + posString[1:].replace("X", "t").replace("O", "X").replace("t", "O")
 
     pos = OthelloPosition(posString)
-    
     # pos.print_board() # Only for debugging. The test script has it's own print
 
     # TODO: implement Iterative Deepening Search
 
     current_depth = 1
     # Which evaluator (heuristics) should be used
-    algorithm = AlphaBeta(PrimaryEvaluator())
+    algorithm = AlphaBeta(CountingEvaluator())
+    algorithm.set_time_limit(time_limit * 0.9)
 
-    best_action = None
+    max_depth = len([v for v in posString if v == "E"])
 
-    # we run up to the 90th percentile of the time limit as a buffer
-    time_limit = time_limit * 0.95
+    while time.time() - start < time_limit * 0.9:
+        # Set the depth that AlbphaBeta will search to.
+        algorithm.set_search_depth(current_depth)
 
-    while time.time() - start < time_limit:
-        # Set the depth that AlphaBeta will search to.
-        algorithm.set_search_depth(current_depth + 1)
-
-        # Set time limit for this depth
-        remaining_time = time_limit - (time.time() - start)
-        algorithm.set_time_limit(remaining_time)
+        # if current_depth >= max_depth:
+        #     break
 
         try:
             # Evaluate the position
             move = algorithm.evaluate(pos)
             best_action = move
 
-            # Stop if the move is a pass move (game over) or the value is infinite (best move found)
-            if move.is_pass_move or abs(move.value) == math.inf:
-                break
-
             current_depth += 1
         except StopSignal:
-            # Time ran out during this depth while evaluating current depth
-            break
+            pass
 
     if best_action is None:
         best_action = OthelloAction(0, 0, True)
-        
     # Send the chosen move to stdout (print it)
     best_action.print_move()
 

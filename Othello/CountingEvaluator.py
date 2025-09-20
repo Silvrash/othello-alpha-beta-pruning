@@ -1,7 +1,5 @@
-from OthelloAction import OthelloAction
 from OthelloPosition import OthelloPosition
 from OthelloEvaluator import OthelloEvaluator
-from itertools import chain
 
 """
   A simple evaluator that just counts the number of black and white squares 
@@ -10,103 +8,163 @@ from itertools import chain
 
 
 class CountingEvaluator(OthelloEvaluator):
-    def __init__(self) -> None:
-        super().__init__()
-        self.corner_squares = [(1, 1), (1, 8), (8, 1), (8, 8)]
-        self.x_squares = [(2, 2), (2, 7), (7, 2), (7, 7)]
-        self.c_squares = [
-            (1, 2),
-            (2, 1),
-            (7, 1),
-            (8, 2),
-            (8, 7),
-            (8, 7),
-            (1, 7),
-            (2, 8),
-        ]
-        # self.edge_squares = self.__generate_edges()
+    corners = [(1, 1), (1, 8), (8, 1), (8, 8)]
+    x_squares = [(2, 2), (2, 7), (7, 2), (7, 7)]
+    c_squares = [(1, 2), (2, 1), (7, 1), (8, 2), (8, 7), (8, 7), (1, 7), (2, 8)]
+    edges = []
 
-        # heuristic values
-        self.corner_point = 50
-        self.stable_point = 40
-        self.x_square_point = -200
-        self.c_square_point = -10
-        self.edge_square_point = 10
-        self.middle_square_point = 5
-        self.frontier_square_point = 2
-        self.single_point = 1
+    def __init__(self):
+        for i in range(1, 9):
+            if i != 1 and i != 8:
+                self.edges.append((1, i))
+                self.edges.append((8, i))
+                self.edges.append((i, 1))
+                self.edges.append((i, 8))
 
-    
+    def evaluate(self, othello_position: OthelloPosition) -> float:
+        weights = {
+            "squares": 1,
+            "corners": 20,
+            "x_squares": -20,
+            "c_squares": -15,
+            "stable_discs": 10,
+            "mobility": 5,
+        }
+        data = {
+            "squares": 0,
+            "corners": 0,
+            "x_squares": 0,
+            "c_squares": 0,
+            "middle_squares": 0,
+            "stable_discs": 0,
+            "mobility": 0,
+        }
 
-    def evaluate(self, othello_position):
-        black_squares = 0
-        white_squares = 0
-        for row in othello_position.board:
-            for item in row:
-                if item == "W":
-                    white_squares += 1
-                if item == "B":
-                    black_squares += 1
-        return white_squares - black_squares
-    # def evaluate(self, position: OthelloPosition):
-        # WEIGHTS = [
-        #     [100, -20, 10, 5, 5, 10, -20, 100],
-        #     [-20, -50, -2, -2, -2, -2, -50, -20],
-        #     [10, -2, 0, 0, 0, 0, -2, 10],
-        #     [5, -2, 0, 0, 0, 0, -2, 5],
-        #     [5, -2, 0, 0, 0, 0, -2, 5],
-        #     [10, -2, 0, 0, 0, 0, -2, 10],
-        #     [-20, -50, -2, -2, -2, -2, -50, -20],
-        #     [100, -20, 10, 5, 5, 10, -20, 100],
-        # ]
-        # my_color = position.maxPlayer
-        # opp_color = not my_color
-        # board = position.board
+        white = {key: 0 for key in data.keys()}
 
-        # my_discs, opp_discs = 0, 0
-        # pos_score = 0
+        black = {key: 0 for key in data.keys()}
 
-        # for r in range(8):
-        #     for c in range(8):
-        #         if board[r][c] == my_color:
-        #             my_discs += 1
-        #             pos_score += WEIGHTS[r][c]
-        #         elif board[r][c] == opp_color:
-        #             opp_discs += 1
-        #             pos_score -= WEIGHTS[r][c]
+        heuristics = {"W": white, "B": black}
 
-        # # Total discs & empties
-        # total_discs = my_discs + opp_discs
-        # empties = 64 - total_discs
+        empty_squares = 0
 
-        # # --- Heuristic components ---
-        # # Piece difference
-        # if total_discs > 0:
-        #     disc_diff = 100 * (my_discs - opp_discs) / total_discs
-        # else:
-        #     disc_diff = 0
+        total_used_squares = black["squares"] + white["squares"]
 
-        # # Mobility
-        # my_moves = len(position.get_moves())
-        # opp_moves = len(position.make_move(OthelloAction(0, 0, True)).get_moves())
-        # if my_moves + opp_moves > 0:
-        #     mobility = 100 * (my_moves - opp_moves) / (my_moves + opp_moves)
-        # else:
-        #     mobility = 0
+        for row, cell_row in enumerate(othello_position.board):
+            for col, cell in enumerate(cell_row):
+                is_white = cell == "W"
+                is_black = cell == "B"
+                is_empty = cell == "E"
 
-        # # Corner control
-        # corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
-        # my_corners = sum(1 for r, c in corners if board[r][c] == my_color)
-        # opp_corners = sum(1 for r, c in corners if board[r][c] == opp_color)
-        # if my_corners + opp_corners > 0:
-        #     corner_control = 100 * (my_corners - opp_corners) / (my_corners + opp_corners)
-        # else:
-        #     corner_control = 0
+                if is_white:
+                    heuristics["W"]["squares"] += 1
+                elif is_black:
+                    heuristics["B"]["squares"] += 1
+                elif is_empty:
+                    empty_squares += 1
+                    continue
 
-        # # --- Phase weighting ---
-        # if empties > 40:  # Early game
-        #     return (25 * mobility) + (10 * pos_score) + (5 * corner_control)
-        # elif empties > 15:  # Midgame
-        #     return (30 * mobility) + (15 * pos_score) + (25 * corner_control)
-        # else:  # Endgame
-        #     return (40 * disc_diff) + (25 * corner_control) + (10 * mobility)
+                if self.is_corner(row, col):
+                    heuristics["W" if is_white else "B"]["corners"] += 1
+                    heuristics["B" if is_black else "W"]["corners"] += 1
+
+                if self.is_x_squares(row, col):
+                    heuristics["W" if is_white else "B"]["x_squares"] += 1
+                    heuristics["B" if is_black else "W"]["x_squares"] += 1
+
+                if self.is_c_squares(row, col):
+                    heuristics["W" if is_white else "B"]["c_squares"] += 1
+                    heuristics["B" if is_black else "W"]["c_squares"] += 1
+
+                if self.is_middle_squares(row, col):
+                    heuristics["W" if is_white else "B"]["middle_squares"] += 1
+                    heuristics["B" if is_black else "W"]["middle_squares"] += 1
+
+                if self.stable_discs(row, col):
+                    heuristics["W" if is_white else "B"]["stable_discs"] += 1
+                    heuristics["B" if is_black else "W"]["stable_discs"] += 1
+
+        white_score = sum(weights[key] * heuristics["W"][key] for key in weights.keys())
+        black_score = sum(weights[key] * heuristics["B"][key] for key in weights.keys())
+
+        if self.is_early_game(total_used_squares):
+            return white_score - black_score
+
+        elif self.is_mid_game(total_used_squares):
+            return white_score - black_score
+
+        else:
+            return white_score - black_score
+
+    def is_early_game(self, total):
+        """
+        first 20 moves
+        """
+        return total < 20
+
+    def is_mid_game(self, total):
+        """
+        after first 20 moves
+        """
+        return total < 40
+
+    def is_late_game(self, total):
+        """
+        last 20 moves
+        """
+        return not self.is_early_game(total) and not self.is_mid_game(total)
+
+    def number_at_edges(self):
+        """
+        squares along the borders but not corners
+        row 1 minus (1,1) and (1, 8)
+        row 8 minus (8, 1) and (8, 8)
+        col 1 minus (1, 1) and (8, 1)
+        col 8 minus (1, 8) and (8, 8)
+
+        advantageous
+        """
+        pass
+
+    def is_corner(self, row, col):
+        """
+        corners on the board. once a member is placed at the corner, it can never be flipped
+        corners = (1, 1), (1, 8), (8, 1), (8, 8)
+
+        highly advantageous
+        """
+
+        return (row, col) in self.corners
+
+    def is_x_squares(self, row, col):
+        """
+        The diagonal squares next to corners.
+        This is a dangerous position because if you take those positions before your opponent, it's very easy for
+        your opponent to flip them.
+        (2, 2), (2, 7), (7, 2), (7, 7)
+
+        highly dangerous
+        """
+        return (row, col) in self.x_squares
+
+    def is_c_squares(self, row, col):
+        """
+        squares directly beside the corners.
+        (1, 2), (2, 1), (7, 1), (8, 2), (8, 7), (8, 7), (1, 7), (2, 8)
+        In early game, try to avoid them because you risk giving up a corner
+        """
+        return (row, col) in self.c_squares
+
+    def is_middle_squares(self, row, col):
+        """
+        all squares that are not corners, edges, x squares and c squares
+        """
+        return (row, col) not in (
+            self.c_squares + self.x_squares + self.corners + self.edges
+        )
+
+    def stable_discs(self,  row, col):
+        """
+        pieces that cannot be flipped
+        """
+        pass
