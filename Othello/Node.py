@@ -1,3 +1,4 @@
+from typing import Callable
 from PrimaryEvaluator import PrimaryEvaluator
 from OthelloPosition import OthelloPosition
 from OthelloAction import OthelloAction
@@ -8,7 +9,13 @@ class Node:
     evaluator = CountingEvaluator()
 
     def __init__(
-        self, pos: OthelloPosition, compute_depth, parent=None, alpha=-100, beta=100
+        self,
+        pos: OthelloPosition,
+        compute_depth,
+        parent=None,
+        alpha=-100,
+        beta=100,
+        force_stop_if_time_elapsed: Callable[[], None] = None,
     ):
         self.position = pos
         self.parent = parent
@@ -18,6 +25,7 @@ class Node:
         self.beta = beta
         self.compute_depth = compute_depth
         self.best_move = None
+        self.force_stop_if_time_elapsed = force_stop_if_time_elapsed
 
         # if root
         if self.parent == None:
@@ -33,9 +41,11 @@ class Node:
         return self.max(node)
 
     def max(self, node):
+        self.force_stop_if_time_elapsed()
         best_move = None
 
         if node.leaf == True:
+            self.force_stop_if_time_elapsed()
             return Node.evaluator.evaluate(node.position)
         score = float("-inf")
 
@@ -44,6 +54,7 @@ class Node:
         if moves == []:
             moves = [OthelloAction(0, 0, True)]
         for m in moves:
+            self.force_stop_if_time_elapsed()
             new_position = node.position.make_move(m)
             child_node = Node(
                 new_position, self.compute_depth, node, node.alpha, node.beta
@@ -68,6 +79,7 @@ class Node:
         return score
 
     def min(self, node):
+        self.force_stop_if_time_elapsed()
         best_move = None
 
         if node.leaf == True:
@@ -79,6 +91,7 @@ class Node:
         if moves == []:
             moves = [OthelloAction(0, 0, True)]
         for m in moves:
+            self.force_stop_if_time_elapsed()
             new_position = node.position.make_move(m)
             child_node = Node(
                 new_position, self.compute_depth, node, node.alpha, node.beta

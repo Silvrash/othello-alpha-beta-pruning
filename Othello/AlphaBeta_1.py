@@ -48,7 +48,7 @@ class AlphaBeta(OthelloAlgorithm):
             raise StopSignal()
 
     def evaluate(self, othello_position: OthelloPosition) -> OthelloAction:
-        root = Node(othello_position, self.search_depth, None)
+        root = Node(othello_position, self.search_depth, None, force_stop_if_time_elapsed=self.__force_stop_if_time_elapsed)
         if(root.best_move is None): return OthelloAction(0,0,True) #if no best moves passing
         #print("\n\nBEST MOVE", root.best_move)
         return root.best_move
