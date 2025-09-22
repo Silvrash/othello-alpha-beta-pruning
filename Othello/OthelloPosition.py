@@ -54,19 +54,19 @@ class OthelloPosition(object):
                 row = (i - 1) // 8 + 1
                 # For convenience we use W and B in the board instead of X and O:
                 if board_str[i] == "X":
-                    self.board[row][col] = "B"
+                    self.board[row, col] = "B"
                 elif board_str[i] == "O":
-                    self.board[row][col] = "W"
+                    self.board[row, col] = "W"
 
     def initialize(self):
         """
         Initializes the position by placing four coins in the middle of the board.
         """
         mid = self.BOARD_SIZE // 2
-        self.board[mid][mid] = "W"
-        self.board[mid + 1][mid + 1] = "W"
-        self.board[mid][mid + 1] = "B"
-        self.board[mid + 1][mid] = "B"
+        self.board[mid, mid] = "W"
+        self.board[mid + 1, mid + 1] = "W"
+        self.board[mid, mid + 1] = "B"
+        self.board[mid + 1, mid] = "B"
         self.maxPlayer = True
 
     def make_move(self, action: OthelloAction) -> OthelloPosition:
@@ -80,9 +80,6 @@ class OthelloPosition(object):
         Returns:
             The OthelloPosition resulting from making the move action in the current position.
         """
-        # TODO: write the code for this method and whatever helper methods it need
-
-        # TODO: write the code for this method and whatever helper methods it need
 
         new_pos = self.clone()
         # if the move is a pass move, we just change the player to move next
@@ -173,7 +170,7 @@ class OthelloPosition(object):
         Returns:
              True if it is a candidate
         """
-        return self.board[row][col] == EMPTY_PLACEHOLDER and self.__has_neighbour(
+        return self.board[row, col] == EMPTY_PLACEHOLDER and self.__has_neighbour(
             row, col
         )
 
@@ -207,9 +204,9 @@ class OthelloPosition(object):
         Returns:
             True if opponent coin
         """
-        if self.maxPlayer and self.board[row][col] == "B":
+        if self.maxPlayer and self.board[row, col] == "B":
             return True
-        if not self.maxPlayer and self.board[row][col] == "W":
+        if not self.maxPlayer and self.board[row, col] == "W":
             return True
         return False
 
@@ -224,9 +221,9 @@ class OthelloPosition(object):
         Returns:
             True if own coin
         """
-        if not self.maxPlayer and self.board[row][col] == "B":
+        if not self.maxPlayer and self.board[row, col] == "B":
             return True
-        if self.maxPlayer and self.board[row][col] == "W":
+        if self.maxPlayer and self.board[row, col] == "W":
             return True
         return False
 

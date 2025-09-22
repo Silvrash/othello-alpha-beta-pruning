@@ -1,68 +1,83 @@
-from typing import Callable
-from PrimaryEvaluator import PrimaryEvaluator
+from __future__ import annotations
 from OthelloPosition import OthelloPosition
 from OthelloAction import OthelloAction
-from CountingEvaluator import CountingEvaluator
+from PrimaryEvaluator import PrimaryEvaluator
+import sys
 
 
 class Node:
-    evaluator = CountingEvaluator()
 
     def __init__(
         self,
         pos: OthelloPosition,
-        compute_depth,
+        max_depth,
         parent=None,
-        alpha=-100,
-        beta=100,
-        force_stop_if_time_elapsed: Callable[[], None] = None,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        time_control=None,
+        evaluator=PrimaryEvaluator(),
     ):
         self.position = pos
         self.parent = parent
         self.leaf = False
-        self.children = []
         self.alpha = alpha
         self.beta = beta
-        self.compute_depth = compute_depth
+        self.compute_depth = max_depth
         self.best_move = None
-        self.force_stop_if_time_elapsed = force_stop_if_time_elapsed
-
+        self.time_control = time_control
+        self.evaluator = evaluator
+        
+        # Set recursion limit based on maximum branching factor
+        # Othello max branching factor: 20 legal moves per turn
+        # Max game length: 60 moves
+        # Theoretical max recursive calls: 60 × 20 = 1,200
+        if sys.getrecursionlimit() < 1200:
+            sys.setrecursionlimit(1200)
+        
         # if root
-        if self.parent == None:
+        if self.parent is None:
             self.depth = 0
             self.alpha_beta(self)
         else:
             self.depth = self.parent.depth + 1
             # if leaf
-            if self.depth == compute_depth:
+            if self.depth == max_depth:
                 self.leaf = True
 
-    def alpha_beta(self, node):
+    def alpha_beta(self, node: Node):
         return self.max(node)
 
-    def max(self, node):
-        self.force_stop_if_time_elapsed()
+    def max(self, node: Node):
+        node.time_control()
         best_move = None
 
-        if node.leaf == True:
-            self.force_stop_if_time_elapsed()
-            return Node.evaluator.evaluate(node.position)
+        if node.leaf:
+            node.time_control()
+            return node.evaluator.evaluate(node.position)
+
         score = float("-inf")
 
         moves = node.position.get_moves()
+
+        moves.sort(key=node.evaluator.move_priority, reverse=True)
+
         # pass if no legal moves
-        if moves == []:
+        if not moves:
             moves = [OthelloAction(0, 0, True)]
+
         for m in moves:
-            self.force_stop_if_time_elapsed()
+            node.time_control()
             new_position = node.position.make_move(m)
             child_node = Node(
-                new_position, self.compute_depth, node, node.alpha, node.beta
+                pos=new_position,
+                max_depth=self.compute_depth,
+                parent=node,
+                alpha=node.alpha,
+                beta=node.beta,
+                time_control=node.time_control,
+                evaluator=node.evaluator,
             )
-            # do we really need to store them ?
-            node.children.append([child_node, m])
-            # ???????????
-
+            
             child_score = self.min(child_node)
             if score < child_score:
                 score = child_score
@@ -78,27 +93,38 @@ class Node:
                 break """
         return score
 
-    def min(self, node):
-        self.force_stop_if_time_elapsed()
+    def min(self, node: Node):
+        node.time_control()
         best_move = None
 
-        if node.leaf == True:
-            return Node.evaluator.evaluate(node.position)
+        if node.leaf:
+            node.time_control()
+            return node.evaluator.evaluate(node.position)
+
         score = float("inf")
 
         moves = node.position.get_moves()
+
+        moves.sort(key=node.evaluator.move_priority, reverse=True)
+
         # pass if no legal moves
-        if moves == []:
+        if not moves:
             moves = [OthelloAction(0, 0, True)]
+
         for m in moves:
-            self.force_stop_if_time_elapsed()
+            node.time_control()
             new_position = node.position.make_move(m)
             child_node = Node(
-                new_position, self.compute_depth, node, node.alpha, node.beta
+                pos=new_position,
+                max_depth=self.compute_depth,
+                parent=node,
+                alpha=node.alpha,
+                beta=node.beta,
+                time_control=node.time_control,
+                evaluator=node.evaluator,
             )
-            # do we really need to store them ?
-            node.children.append([child_node, m])
-            # ???????????
+            
+
             child_score = self.max(child_node)
             if score > child_score:
                 score = child_score

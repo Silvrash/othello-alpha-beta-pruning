@@ -1,0 +1,30 @@
+ weights = {
+      "squares": 1,           # Basic piece count
+      "corners": 16,          # Corner control (highest priority)
+      "x_squares": 1 / 16,    # X-square avoidance (penalty)
+      "c_squares": 1 / 16,    # C-square avoidance (penalty)
+      "stable_discs": 16,     # Stable disc count
+      "frontier_squares": -1 / 2,  # Frontier avoidance (penalty)
+      "mobility": 4,          # Move count advantage
+      "edge_squares": 4,      # Edge control
+      "center_control": 2,    # Center control
+  }
+
+==========================================
+Time | White | Black | White Points | Black Points
+-----|-------|-------|--------------|-------------
+   2s | LOSS | WIN  |           0 |            6
+   3s | WIN  | WIN  |          24 |           16
+   4s | WIN  | WIN  |          26 |            4
+   5s | WIN  | LOSS |          18 |            0
+   6s | WIN  | WIN  |          32 |           20
+   7s | WIN  | LOSS |          20 |            0
+   8s | WIN  | WIN  |          28 |           22
+   9s | WIN  | LOSS |          10 |            0
+  10s | WIN  | WIN  |          36 |           28
+
+📈 SUMMARY STATISTICS:
+White Win Rate: 8/9 (88%)
+Black Win Rate: 6/9 (66%)
+Best White Performance: 36 points at 10s
+Best Black Performance: 28 points at 10s
