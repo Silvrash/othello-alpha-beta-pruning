@@ -1,0 +1,569 @@
+from OthelloEvaluator import OthelloEvaluator
+from BitboardOthelloPosition import BitboardOthelloPosition
+
+
+class PrimaryEvaluator(OthelloEvaluator):
+    """
+    Heuristic evaluator for Othello positions.
+
+    This evaluator applies different strategies for different phases of the game such as early, middle, and late stages.
+    It takes into account stability, positional control, and avoiding stability.
+
+    Key features:
+    - Corner control (highest priority)
+    - Stable disc detection
+    - X-square and C-square avoidance
+    - Mobility calculation
+    - Frontier square minimization
+    - Edge and center control
+    - Phase-adaptive weighting
+
+    The evaluator uses NumPy operations for efficient calculation
+    and pre-computed masks for different position types.
+
+    Author: Afrasah Benjamin Arko & Sienichev Matvey
+    """
+
+    DIRECTIONS = [
+        (-1, 0),  # Top
+        (1, 0),  # Bottom
+        (0, 1),  # Right
+        (0, -1),  # Left
+        (-1, 1),  # Top-right
+        (-1, -1),  # Top-left
+        (1, 1),  # Bottom-right
+        (1, -1),  # Bottom-left
+    ]
+
+    def __init__(self):
+        """
+        Initialize the evaluator with pre-computed position masks.
+
+        Creates bitboard masks for different types of board positions:
+        - Corner positions (most stable)
+        - X-squares (dangerous diagonal positions)
+        - C-squares (dangerous adjacent positions)
+        - Edge positions (stable border positions)
+        - Center positions (4x4 center area)
+        """
+        super().__init__()
+        # Create all masks for different position types as bitboards
+        self.corner_bitboard = 0
+        self.x_square_bitboard = 0
+        self.c_square_bitboard = 0
+        self.edge_bitboard = 0
+        self.center_bitboard = 0
+
+        # Initialize each mask type
+        self._setup_corner_bitboard()
+        self._setup_x_square_bitboard()
+        self._setup_c_square_bitboard()
+        self._setup_edge_bitboard()
+        self._setup_center_bitboard()
+
+    def _setup_corner_bitboard(self):
+        """
+        Set up corner position bitboard.
+
+        Corners are the most stable positions: (0,0), (0,7), (7,0), (7,7)
+        These positions can never be flipped once captured.
+        """
+        # Corner bit positions: (0,0)=0, (0,7)=7, (7,0)=56, (7,7)=63
+        self.corner_bitboard = (1 << 0) | (1 << 7) | (1 << 56) | (1 << 63)
+
+    def _setup_x_square_bitboard(self):
+        """
+        Set up X-square position bitboard.
+
+        X-squares are diagonal positions adjacent to corners: (1,1), (1,6), (6,1), (6,6)
+        These are extremely dangerous as they often lead to corner loss.
+        """
+        # X-square bit positions: (1,1)=9, (1,6)=14, (6,1)=49, (6,6)=54
+        self.x_square_bitboard = (1 << 9) | (1 << 14) | (1 << 49) | (1 << 54)
+
+    def _setup_c_square_bitboard(self):
+        """
+        Set up C-square position bitboard.
+
+        C-squares are positions directly adjacent to corners:
+        (0,1), (1,0), (6,0), (7,1), (7,6), (0,6), (1,7)
+        These are dangerous in early game as they risk corner sacrifice.
+        """
+        # C-square bit positions: (0,1)=1, (1,0)=8, (6,0)=48, (7,1)=57, (7,6)=62, (0,6)=6, (1,7)=15
+        self.c_square_bitboard = (1 << 1) | (1 << 8) | (1 << 48) | (1 << 57) | (1 << 62) | (1 << 6) | (1 << 15)
+
+    def _setup_edge_bitboard(self):
+        """
+        Set up edge position bitboard.
+
+        Edge positions are along the board borders but not corners.
+        These are more stable than interior positions but less stable than corners.
+        """
+        # Top edge (row 0, columns 1-6)
+        self.edge_bitboard |= (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6)
+        
+        # Bottom edge (row 7, columns 1-6)
+        self.edge_bitboard |= (1 << 57) | (1 << 58) | (1 << 59) | (1 << 60) | (1 << 61) | (1 << 62)
+        
+        # Left edge (column 0, rows 1-6)
+        self.edge_bitboard |= (1 << 8) | (1 << 16) | (1 << 24) | (1 << 32) | (1 << 40) | (1 << 48)
+        
+        # Right edge (column 7, rows 1-6)
+        self.edge_bitboard |= (1 << 15) | (1 << 23) | (1 << 31) | (1 << 39) | (1 << 47) | (1 << 55)
+
+    def _setup_center_bitboard(self):
+        """
+        Set up center control position bitboard.
+
+        Center positions are the 4x4 area in the middle of the board (rows 2-5, cols 2-5).
+        Control of this area provides flexibility and positional advantage.
+        """
+        # Center 4x4 area: rows 2-5, cols 2-5 (0-indexed: 2-5)
+        for row in range(2, 6):
+            for col in range(2, 6):
+                bit_pos = row * 8 + col
+                self.center_bitboard |= (1 << bit_pos)
+
+    def evaluate(self, othello_position: BitboardOthelloPosition) -> float:
+        """
+        Evaluate an Othello position using stability-focused heuristics.
+
+        This method implements a sophisticated evaluation system based on the
+        "invisible sniper" philosophy - maximizing stability while minimizing
+        vulnerabilities. The evaluation adapts based on the game phase.
+
+        Args:
+            othello_position (BitboardOthelloPosition): The position to evaluate
+
+        Returns:
+            float: Evaluation score (positive favors current player)
+        """
+        # Determine game phase based on total pieces on board
+        total_pieces = bin(othello_position.white_bitboard).count('1') + bin(othello_position.black_bitboard).count('1')
+        
+        # Phase-adaptive weights based on your documentation
+        if total_pieces <= 20:  # Early game
+            weights = {
+                "squares": 0.5,  # Low priority in early game
+                "corners": 100,  # Highest priority - corner control
+                "x_squares": -50,  # Heavy penalty for X-squares
+                "c_squares": -25,  # Penalty for C-squares
+                "stable_discs": 20,  # Stable disc building
+                "frontier_squares": -2,  # Frontier minimization
+                "mobility": 8,  # Move count advantage
+                "edge_squares": 0,  # Excluded in early game
+                "center_control": 4,  # Center control strategy
+            }
+        elif total_pieces <= 50:  # Mid game
+            weights = {
+                "squares": 1,  # Moderate piece count importance
+                "corners": 80,  # High corner priority
+                "x_squares": -40,  # Heavy penalty for X-squares
+                "c_squares": -20,  # Penalty for C-squares
+                "stable_discs": 25,  # Stable disc building
+                "frontier_squares": -1.5,  # Frontier minimization
+                "mobility": 6,  # Move count advantage
+                "edge_squares": 3,  # Edge control becomes important
+                "center_control": 2,  # Reduced center importance
+            }
+        else:  # Late game
+            weights = {
+                "squares": 2,  # Higher piece count importance
+                "corners": 60,  # Still important but less critical
+                "x_squares": -30,  # Penalty for X-squares
+                "c_squares": -15,  # Penalty for C-squares
+                "stable_discs": 30,  # Maximize stable discs
+                "frontier_squares": -1,  # Frontier management
+                "mobility": 4,  # Reduced mobility importance
+                "edge_squares": 2,  # Edge control
+                "center_control": 1,  # Minimal center importance
+            }
+
+        # heuristic data board for each feature
+        data = {
+            "squares": 0,
+            "corners": 0,
+            "x_squares": 0,
+            "c_squares": 0,
+            "middle_squares": 0,
+            "stable_discs": 0,
+            "frontier_squares": 0,
+            "mobility": 0,
+            "edge_squares": 0,
+            "center_control": 0,
+        }
+
+        # player score board for each feature
+        current_player = {key: 0 for key in data.keys()}
+        opponent = {key: 0 for key in data.keys()}
+
+        # Get bitboards for current player and opponent
+        if othello_position.maxPlayer:
+            my_bitboard = othello_position.white_bitboard
+            opp_bitboard = othello_position.black_bitboard
+        else:
+            my_bitboard = othello_position.black_bitboard
+            opp_bitboard = othello_position.white_bitboard
+
+        # compute mobility for current player
+        current_player["mobility"] = self.mobility(othello_position)
+
+        # compute mobility for opponent
+        temp_pos = othello_position.clone()
+        temp_pos.maxPlayer = not othello_position.maxPlayer
+        opponent["mobility"] = self.mobility(temp_pos)
+
+        # count discs for each player using bitboard operations
+        current_player["squares"] = bin(my_bitboard).count('1')
+        opponent["squares"] = bin(opp_bitboard).count('1')
+
+        # Count different position types using bitboard operations
+        current_player["corners"] = bin(my_bitboard & self.corner_bitboard).count('1')
+        opponent["corners"] = bin(opp_bitboard & self.corner_bitboard).count('1')
+
+        current_player["x_squares"] = bin(my_bitboard & self.x_square_bitboard).count('1')
+        opponent["x_squares"] = bin(opp_bitboard & self.x_square_bitboard).count('1')
+
+        current_player["c_squares"] = bin(my_bitboard & self.c_square_bitboard).count('1')
+        opponent["c_squares"] = bin(opp_bitboard & self.c_square_bitboard).count('1')
+
+        current_player["edge_squares"] = bin(my_bitboard & self.edge_bitboard).count('1')
+        opponent["edge_squares"] = bin(opp_bitboard & self.edge_bitboard).count('1')
+
+        # count center control
+        current_player["center_control"] = bin(my_bitboard & self.center_bitboard).count('1')
+        opponent["center_control"] = bin(opp_bitboard & self.center_bitboard).count('1')
+
+        # count middle squares (not corners, edges, x_squares, c_squares, center)
+        middle_bitboard = ~(self.corner_bitboard | self.x_square_bitboard | 
+                           self.c_square_bitboard | self.edge_bitboard | 
+                           self.center_bitboard) & 0xFFFFFFFFFFFFFFFF
+        current_player["middle_squares"] = bin(my_bitboard & middle_bitboard).count('1')
+        opponent["middle_squares"] = bin(opp_bitboard & middle_bitboard).count('1')
+
+        # count frontier squares
+        frontier_current = self._count_frontier_squares_bitboard(
+            othello_position, my_bitboard
+        )
+        frontier_opponent = self._count_frontier_squares_bitboard(
+            othello_position, opp_bitboard
+        )
+        current_player["frontier_squares"] = frontier_current
+        opponent["frontier_squares"] = frontier_opponent
+
+        # count stable discs
+        stable_current = self._count_stable_discs_bitboard(
+            othello_position, my_bitboard
+        )
+        stable_opponent = self._count_stable_discs_bitboard(
+            othello_position, opp_bitboard
+        )
+        current_player["stable_discs"] = stable_current
+        opponent["stable_discs"] = stable_opponent
+
+        # Phase-aware evaluation based on game progress
+        total_pieces = current_player["squares"] + opponent["squares"]
+        empty_squares = 64 - total_pieces
+        
+        # Determine game phase based on remaining moves
+        if empty_squares > 15:  # Early game (more than 15 moves left)
+            phase = "early"
+        elif empty_squares > 5:  # Mid game (6-15 moves left)
+            phase = "mid"
+        else:  # Endgame (5 or fewer moves left)
+            phase = "end"
+        
+        # Phase-specific weights
+        if phase == "early":
+            # Early game: focus on mobility and avoiding dangerous squares
+            corner_weight = 200  # Corners are rare but valuable
+            stable_weight = 30
+            danger_penalty_weight = 40  # Strong penalty for dangerous squares
+            frontier_penalty_weight = 15  # Moderate penalty for frontier
+            mobility_weight = 8
+            piece_weight = 0.5  # Low weight for piece count
+            edge_weight = 3
+            center_weight = 2
+            middle_weight = 1
+        elif phase == "mid":
+            # Mid game: balance between stability and mobility
+            corner_weight = 500  # Corners become more important
+            stable_weight = 40
+            danger_penalty_weight = 30
+            frontier_penalty_weight = 12
+            mobility_weight = 6
+            piece_weight = 1
+            edge_weight = 4
+            center_weight = 2
+            middle_weight = 1.5
+        else:  # endgame
+            # Endgame: focus on piece count and stability
+            corner_weight = 1000  # Corners are crucial
+            stable_weight = 60
+            danger_penalty_weight = 20
+            frontier_penalty_weight = 8
+            mobility_weight = 4
+            piece_weight = 3  # High weight for piece count
+            edge_weight = 5
+            center_weight = 1
+            middle_weight = 2
+        
+        # Calculate scores with phase-appropriate weights
+        corner_score = (current_player["corners"] - opponent["corners"]) * corner_weight
+        stable_score = (current_player["stable_discs"] - opponent["stable_discs"]) * stable_weight
+        danger_penalty = (current_player["x_squares"] + current_player["c_squares"]) * danger_penalty_weight
+        opponent_danger_penalty = (opponent["x_squares"] + opponent["c_squares"]) * danger_penalty_weight
+        frontier_penalty = (current_player["frontier_squares"] - opponent["frontier_squares"]) * frontier_penalty_weight
+        mobility_score = (current_player["mobility"] - opponent["mobility"]) * mobility_weight
+        piece_score = (current_player["squares"] - opponent["squares"]) * piece_weight
+        edge_score = (current_player["edge_squares"] - opponent["edge_squares"]) * edge_weight
+        center_score = (current_player["center_control"] - opponent["center_control"]) * center_weight
+        middle_score = (current_player["middle_squares"] - opponent["middle_squares"]) * middle_weight
+        
+        # Combine all factors
+        total_score = (corner_score + stable_score - danger_penalty + opponent_danger_penalty - 
+                      frontier_penalty + mobility_score + piece_score + edge_score + center_score + middle_score)
+        
+        return total_score
+
+    def _count_frontier_squares_bitboard(self, position: BitboardOthelloPosition, player_bitboard):
+        """
+        Count frontier squares using bitboard operations.
+        Frontier squares are squares that border with one or more empty squares.
+        This includes edge squares unless they are stable (anchored by corners).
+        """
+        frontier_count = 0
+        empty_bitboard = position.empty_bitboard
+        
+        # Get all player pieces (including edges)
+        player_positions = player_bitboard
+        
+        # Iterate through all player pieces
+        temp_positions = player_positions
+        while temp_positions:
+            # Find the rightmost set bit
+            bit = temp_positions & -temp_positions
+            bit_pos = bit.bit_length() - 1
+            
+            # Convert bit position to row, col (0-based)
+            row, col = bit_pos // 8, bit_pos % 8
+            
+            # Check if this piece is on an edge
+            is_edge = bool(self.edge_bitboard & (1 << bit_pos))
+            
+            # Check all 8 directions for empty squares
+            has_empty_neighbor = False
+            for dr, dc in self.DIRECTIONS:
+                new_row, new_col = row + dr, col + dc
+                if (0 <= new_row < 8 and 0 <= new_col < 8):
+                    new_bit_pos = new_row * 8 + new_col
+                    if empty_bitboard & (1 << new_bit_pos):
+                        has_empty_neighbor = True
+                        break
+            
+            # If it has empty neighbors, it's a frontier square
+            # For edge squares, we also need to check if they're stable
+            if has_empty_neighbor:
+                if is_edge:
+                    # For edge squares, check if they're stable (anchored by corners)
+                    if not self._is_edge_stable(position, player_bitboard, row, col):
+                        frontier_count += 1
+                else:
+                    # Non-edge squares with empty neighbors are always frontier
+                    frontier_count += 1
+            
+            # Remove this bit from consideration
+            temp_positions &= temp_positions - 1
+        
+        return frontier_count
+    
+    def _is_edge_stable(self, position: BitboardOthelloPosition, player_bitboard, row, col):
+        """
+        Check if an edge square is stable (anchored by corners).
+        An edge square is stable if it's connected to a corner or to another stable edge square.
+        """
+        # If it's a corner, it's always stable
+        if self.is_corner(row, col):
+            return True
+        
+        # Check if it's connected to a corner in the same row or column
+        if row == 0 or row == 7:  # Top or bottom edge
+            # Check if there's a corner in the same row
+            for c in [0, 7]:
+                if (player_bitboard & (1 << (row * 8 + c))) and self.is_corner(row, c):
+                    # Check if all squares between this position and the corner are our pieces
+                    if self._is_line_stable(position, player_bitboard, row, col, 0, 1 if c > col else -1):
+                        return True
+        elif col == 0 or col == 7:  # Left or right edge
+            # Check if there's a corner in the same column
+            for r in [0, 7]:
+                if (player_bitboard & (1 << (r * 8 + col))) and self.is_corner(r, col):
+                    # Check if all squares between this position and the corner are our pieces
+                    if self._is_line_stable(position, player_bitboard, row, col, 1 if r > row else -1, 0):
+                        return True
+        
+        return False
+    
+    def _is_line_stable(self, position: BitboardOthelloPosition, player_bitboard, start_row, start_col, dr, dc):
+        """
+        Check if a line from (start_row, start_col) in direction (dr, dc) is stable.
+        A line is stable if all squares in the line are our pieces.
+        """
+        r, c = start_row, start_col
+        
+        while 0 <= r < 8 and 0 <= c < 8:
+            if not (player_bitboard & (1 << (r * 8 + c))):
+                return False
+            r += dr
+            c += dc
+        
+        return True
+
+    def _count_stable_discs_bitboard(self, position: BitboardOthelloPosition, player_bitboard):
+        """
+        Count stable discs using proper recursive stability calculation.
+        A disc is stable if it's connected to a corner or to another stable disc.
+        This implements the correct global stability concept in Othello.
+        """
+        # Start with corners as the base stable discs
+        stable_discs = player_bitboard & self.corner_bitboard
+        prev_stable_count = 0
+        
+        # Iteratively find discs connected to stable discs
+        while True:
+            current_stable_count = bin(stable_discs).count('1')
+            if current_stable_count == prev_stable_count:
+                break  # No new stable discs found
+            prev_stable_count = current_stable_count
+            
+            # Find all discs connected to current stable discs
+            new_stable = self._find_connected_stable_discs(position, player_bitboard, stable_discs)
+            stable_discs |= new_stable
+        
+        return bin(stable_discs).count('1')
+    
+    def _find_connected_stable_discs(self, position: BitboardOthelloPosition, player_bitboard, stable_discs):
+        """
+        Find discs that are connected to stable discs and are themselves stable.
+        A disc is connected-stable if it's adjacent to a stable disc and forms a stable line.
+        """
+        new_stable = 0
+        temp_stable = stable_discs
+        
+        # For each stable disc, check adjacent discs
+        while temp_stable:
+            bit = temp_stable & -temp_stable
+            bit_pos = bit.bit_length() - 1
+            row = bit_pos // 8
+            col = bit_pos % 8
+            
+            # Check all 8 directions from this stable disc
+            for dr, dc in self.DIRECTIONS:
+                r, c = row + dr, col + dc
+                
+                # Check if adjacent position has our piece and is not already stable
+                if (0 <= r < 8 and 0 <= c < 8 and 
+                    (player_bitboard & (1 << (r * 8 + c))) and 
+                    not (stable_discs & (1 << (r * 8 + c)))):
+                    
+                    # Check if this disc forms a stable line with the stable disc
+                    if self._is_stable_line(position, player_bitboard, r, c, dr, dc):
+                        new_stable |= (1 << (r * 8 + c))
+            
+            temp_stable &= temp_stable - 1
+        
+        return new_stable
+    
+    def _is_stable_line(self, position: BitboardOthelloPosition, player_bitboard, start_row, start_col, dr, dc):
+        """
+        Check if a line starting from (start_row, start_col) in direction (dr, dc) is stable.
+        A line is stable if it ends with our color or the board edge.
+        """
+        r, c = start_row, start_col
+        
+        # Walk along the line
+        while 0 <= r < 8 and 0 <= c < 8:
+            current_bit_pos = r * 8 + c
+            
+            # If we hit an empty square or opponent piece, line is not stable
+            if not (player_bitboard & (1 << current_bit_pos)):
+                return False
+            
+            r += dr
+            c += dc
+        
+        # If we reached the board edge, line is stable
+        return True
+
+    def is_corner(self, row, col):
+        """
+        Check if a position is a corner.
+        Corners on the board: (0,0), (0,7), (7,0), (7,7)
+        Once a piece is placed at the corner, it can never be flipped - highly advantageous
+        """
+        bit_pos = row * 8 + col
+        return bool(self.corner_bitboard & (1 << bit_pos))
+
+    def is_x_squares(self, row, col):
+        """
+        Check if a position is an X-square.
+        The diagonal squares next to corners: (1,1), (1,6), (6,1), (6,6)
+        This is a dangerous position because if you take those positions before your opponent, 
+        it's very easy for your opponent to flip them - highly dangerous
+        """
+        bit_pos = row * 8 + col
+        return bool(self.x_square_bitboard & (1 << bit_pos))
+
+    def is_c_squares(self, row, col):
+        """
+        Check if a position is a C-square.
+        Squares directly beside the corners: (0,1), (1,0), (6,0), (7,1), (7,6), (0,6), (1,7)
+        In early game, try to avoid them because you risk giving up a corner
+        """
+        bit_pos = row * 8 + col
+        return bool(self.c_square_bitboard & (1 << bit_pos))
+
+    def is_center_square(self, row, col):
+        """
+        Check if a position is in the center 4x4 area.
+        Center squares: rows 2-5, cols 2-5 (0-indexed)
+        """
+        bit_pos = row * 8 + col
+        return bool(self.center_bitboard & (1 << bit_pos))
+
+    def is_middle_squares(self, row, col):
+        """
+        Check if a position is a middle square.
+        All squares that are not corners, edges, x squares and c squares
+        """
+        bit_pos = row * 8 + col
+        return not (
+            self.corner_bitboard & (1 << bit_pos) or
+            self.x_square_bitboard & (1 << bit_pos) or
+            self.c_square_bitboard & (1 << bit_pos) or
+            self.edge_bitboard & (1 << bit_pos)
+        )
+
+    def is_edge_squares(self, row, col):
+        """
+        Check if a position is an edge square.
+        Squares along the borders but not corners
+        """
+        bit_pos = row * 8 + col
+        return bool(self.edge_bitboard & (1 << bit_pos))
+
+    def mobility(self, position: BitboardOthelloPosition):
+        """
+        Calculate the mobility (number of legal moves) for the current player.
+
+        Mobility is a key tactical factor - having more legal moves provides
+        more options and flexibility. It's particularly important in early
+        and mid game phases.
+
+        Args:
+            position (BitboardOthelloPosition): The position to evaluate
+
+        Returns:
+            int: Number of legal moves for the current player
+        """
+        return len(position.get_moves())

@@ -1,9 +1,19 @@
 import time
 import sys
+from BitboardOthelloPosition import BitboardOthelloPosition
+from OptimizedBitboardPosition import OptimizedBitboardPosition
+from SecondaryEvaluator import SecondaryEvaluator
+from CountingEvaluator import CountingEvaluator
+from OptimizedEvaluator import OptimizedEvaluator
 from OthelloAction import OthelloAction
 from OthelloPosition import OthelloPosition
 from AlphaBeta import AlphaBeta, StopSignal
 from PrimaryEvaluator import PrimaryEvaluator
+from FastEvaluator import FastEvaluator
+from BeatNaiveEvaluator import BeatNaiveEvaluator
+from CornerMasterEvaluator import CornerMasterEvaluator
+from GreedyEvaluator import GreedyEvaluator
+import os
 
 class Othello(object):
     """
@@ -67,48 +77,55 @@ class Othello(object):
 
     start = time.time()
 
-    pos = OthelloPosition(posString)
+    pos = BitboardOthelloPosition(posString)
     
     # pos.print_board() # Only for debugging. The test script has it's own print
+    # print('is white to move', pos.maxPlayer)
+    # print('is black to move', not pos.maxPlayer)
 
     # ITERATIVE DEEPENING SEARCH IMPLEMENTATION
+    # Increment depth from 1 up to maximum possible within time limit
     
-    # Initialize search parameters
-    current_depth = 1  # Start with depth 1
-    algorithm = AlphaBeta(PrimaryEvaluator())  # Use advanced heuristic evaluator
-    best_action = None  # Store the best move found
+    algorithm = AlphaBeta(GreedyEvaluator())
+    best_action = None
     
-    # Apply 99% time buffer to account for evaluation overhead
-    # This prevents timeout during move calculation
-    time_limit = time_limit * 0.95
-
-    # Iterative deepening loop
+    # Apply time buffer - be more aggressive with time usage
+    time_limit = time_limit * 0.90
+    
+    # Iterative deepening: start from depth 1 and increment
+    current_depth = 1
+    
     while time.time() - start < time_limit:
-        # Configure algorithm for current depth
         algorithm.set_search_depth(current_depth)
-        
-        # Calculate remaining time for this depth
         elapsed_time = time.time() - start
         remaining_time = time_limit - elapsed_time
+        
+        # Don't start a new depth if we don't have enough time
+        if remaining_time < 0.05:  # Need at least 0.05 seconds
+            break
+            
         algorithm.set_time_limit(remaining_time)
         
         try:
             # Search to current depth
             move = algorithm.evaluate(pos)
+
             best_action = move  # Update best move if search completed
-            
-            # Increment depth for next iteration
+                # print(f"Depth: {current_depth}, Move: {move}, Time: {elapsed_time}, score: {move.value}")
+            # print(f"Depth: {current_depth}, Move: {move}")
             current_depth += 1
-            
         except StopSignal:
             # Time limit exceeded during current depth search
-            # Return best move from previous completed depth
             break
 
-    # Handle case where no move was found (should not happen)
+    # print(f"Best action: {best_action} {best_action.value}")
+    # Handle case where no move was found
     if best_action is None:
         best_action = OthelloAction(0, 0, True)  # Pass move
-        
+
+    # os.makedirs(f"depth", exist_ok=True)
+    # with open(f"depth/t{original_time_limit}s.txt", "a") as f:
+    #     f.write(f"{current_depth} {move}\n")
     # Output the chosen move to stdout
     best_action.print_move()
 

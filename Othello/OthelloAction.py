@@ -20,6 +20,7 @@ class OthelloAction(object):
         self.col = col
         self.is_pass_move = is_pass_move
         self.value = float("-inf")
+        self.discs_flipped = 0  # Track how many discs were flipped by this move
 
     def print_move(self):
         """

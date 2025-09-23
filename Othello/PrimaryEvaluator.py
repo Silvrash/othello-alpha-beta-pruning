@@ -1,12 +1,11 @@
 from OthelloAction import OthelloAction
-from OthelloPosition import EMPTY_PLACEHOLDER, OthelloPosition
+from BitboardOthelloPosition import BitboardOthelloPosition
 from OthelloEvaluator import OthelloEvaluator
-import numpy as np
 
 
 class PrimaryEvaluator(OthelloEvaluator):
     """
-    Heuristic evaluator for Othello positions.
+    Optimized bitboard-based heuristic evaluator for Othello positions.
 
     This evaluator applies different strategies for different phases of the game such as early, middle, and late stages.
     It takes into account stability, positional control, and avoiding stability.
@@ -20,8 +19,10 @@ class PrimaryEvaluator(OthelloEvaluator):
     - Edge and center control
     - Phase-adaptive weighting
 
-    The evaluator uses NumPy operations for efficient calculation
-    and pre-computed masks for different position types.
+    The evaluator uses bitboard operations for maximum performance
+    and pre-computed bitboard masks for different position types.
+
+    ONLY supports BitboardOthelloPosition for optimal performance.
 
     Author: Afrasah Benjamin Arko & Sienichev Matvey
     """
@@ -41,21 +42,25 @@ class PrimaryEvaluator(OthelloEvaluator):
         """
         Initialize the evaluator with pre-computed position masks.
 
-        Creates boolean masks for different types of board positions:
+        Creates bitboard masks for different types of board positions:
         - Corner positions (most stable)
         - X-squares (dangerous diagonal positions)
         - C-squares (dangerous adjacent positions)
         - Edge positions (stable border positions)
         - Center positions (4x4 center area)
+        
+        Each mask is a 64-bit integer where bit positions correspond to:
+        Bit 0 = (0,0), Bit 1 = (0,1), ..., Bit 7 = (0,7)
+        Bit 8 = (1,0), Bit 9 = (1,1), ..., Bit 15 = (1,7)
+        ...
+        Bit 56 = (7,0), Bit 57 = (7,1), ..., Bit 63 = (7,7)
         """
-        # Create all masks for different position types
-        (
-            self.corner_mask,
-            self.x_square_mask,
-            self.c_square_mask,
-            self.edge_mask,
-            self.center_mask,
-        ) = np.zeros((5, 8, 8), dtype=bool)
+        # Create all masks for different position types as bitboards
+        self.corner_mask = 0
+        self.x_square_mask = 0
+        self.c_square_mask = 0
+        self.edge_mask = 0
+        self.center_mask = 0
 
         # Initialize each mask type
         self._setup_corner_mask()
@@ -66,105 +71,87 @@ class PrimaryEvaluator(OthelloEvaluator):
 
     def _setup_corner_mask(self):
         """
-        Set up corner position mask.
+        Set up corner position bitboard mask.
 
-        Corners are the most stable positions: (1,1), (1,8), (8,1), (8,8)
+        Corners are the most stable positions: (0,0), (0,7), (7,0), (7,7)
         These positions can never be flipped once captured.
         """
-        self.corner_mask[0, 0] = True  # (1, 1)
-        self.corner_mask[0, 7] = True  # (1, 8)
-        self.corner_mask[7, 0] = True  # (8, 1)
-        self.corner_mask[7, 7] = True  # (8, 8)
+        # Corner bit positions: (0,0)=0, (0,7)=7, (7,0)=56, (7,7)=63
+        self.corner_mask = (1 << 0) | (1 << 7) | (1 << 56) | (1 << 63)
 
     def _setup_x_square_mask(self):
         """
-        Set up X-square position mask.
+        Set up X-square position bitboard mask.
 
-        X-squares are diagonal positions adjacent to corners: (2,2), (2,7), (7,2), (7,7)
+        X-squares are diagonal positions adjacent to corners: (1,1), (1,6), (6,1), (6,6)
         These are extremely dangerous as they often lead to corner loss.
         """
-        self.x_square_mask[1, 1] = True  # (2, 2)
-        self.x_square_mask[1, 6] = True  # (2, 7)
-        self.x_square_mask[6, 1] = True  # (7, 2)
-        self.x_square_mask[6, 6] = True  # (7, 7)
+        # X-square bit positions: (1,1)=9, (1,6)=14, (6,1)=49, (6,6)=54
+        self.x_square_mask = (1 << 9) | (1 << 14) | (1 << 49) | (1 << 54)
 
     def _setup_c_square_mask(self):
         """
-        Set up C-square position mask.
+        Set up C-square position bitboard mask.
 
         C-squares are positions directly adjacent to corners:
-        (1,2), (2,1), (7,1), (8,2), (8,7), (1,7), (2,8)
+        (0,1), (1,0), (6,0), (7,1), (7,6), (0,6), (1,7)
         These are dangerous in early game as they risk corner sacrifice.
         """
-        self.c_square_mask[0, 1] = True  # (1, 2)
-        self.c_square_mask[1, 0] = True  # (2, 1)
-        self.c_square_mask[6, 0] = True  # (7, 1)
-        self.c_square_mask[7, 1] = True  # (8, 2)
-        self.c_square_mask[7, 6] = True  # (8, 7)
-        self.c_square_mask[0, 6] = True  # (1, 7)
-        self.c_square_mask[1, 7] = True  # (2, 8)
+        # C-square bit positions: (0,1)=1, (1,0)=8, (6,0)=48, (7,1)=57, (7,6)=62, (0,6)=6, (1,7)=15
+        self.c_square_mask = (1 << 1) | (1 << 8) | (1 << 48) | (1 << 57) | (1 << 62) | (1 << 6) | (1 << 15)
 
     def _setup_edge_mask(self):
         """
-        Set up edge position mask.
+        Set up edge position bitboard mask.
 
         Edge positions are along the board borders but not corners.
         These are more stable than interior positions but less stable than corners.
         """
-        # Top edge (row 1, columns 2-7)
-        self.edge_mask[0, 1] = True  # (1, 2)
-        self.edge_mask[0, 2] = True  # (1, 3)
-        self.edge_mask[0, 3] = True  # (1, 4)
-        self.edge_mask[0, 4] = True  # (1, 5)
-        self.edge_mask[0, 5] = True  # (1, 6)
-        self.edge_mask[0, 6] = True  # (1, 7)
-
-        # Bottom edge (row 8, columns 2-7)
-        self.edge_mask[7, 1] = True  # (8, 2)
-        self.edge_mask[7, 2] = True  # (8, 3)
-        self.edge_mask[7, 3] = True  # (8, 4)
-        self.edge_mask[7, 4] = True  # (8, 5)
-        self.edge_mask[7, 5] = True  # (8, 6)
-        self.edge_mask[7, 6] = True  # (8, 7)
-
-        # Left edge (column 1, rows 2-7)
-        self.edge_mask[1, 0] = True  # (2, 1)
-        self.edge_mask[2, 0] = True  # (3, 1)
-        self.edge_mask[3, 0] = True  # (4, 1)
-        self.edge_mask[4, 0] = True  # (5, 1)
-        self.edge_mask[5, 0] = True  # (6, 1)
-        self.edge_mask[6, 0] = True  # (7, 1)
-
-        # Right edge (column 8, rows 2-7)
-        self.edge_mask[1, 7] = True  # (2, 8)
-        self.edge_mask[2, 7] = True  # (3, 8)
-        self.edge_mask[3, 7] = True  # (4, 8)
-        self.edge_mask[4, 7] = True  # (5, 8)
-        self.edge_mask[5, 7] = True  # (6, 8)
-        self.edge_mask[6, 7] = True  # (7, 8)
+        # Top edge (row 0, columns 1-6): bits 1-6
+        # Bottom edge (row 7, columns 1-6): bits 57-62
+        # Left edge (column 0, rows 1-6): bits 8,16,24,32,40,48
+        # Right edge (column 7, rows 1-6): bits 15,23,31,39,47,55
+        
+        self.edge_mask = (
+            # Top edge: (0,1)=1, (0,2)=2, (0,3)=3, (0,4)=4, (0,5)=5, (0,6)=6
+            (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) |
+            # Bottom edge: (7,1)=57, (7,2)=58, (7,3)=59, (7,4)=60, (7,5)=61, (7,6)=62
+            (1 << 57) | (1 << 58) | (1 << 59) | (1 << 60) | (1 << 61) | (1 << 62) |
+            # Left edge: (1,0)=8, (2,0)=16, (3,0)=24, (4,0)=32, (5,0)=40, (6,0)=48
+            (1 << 8) | (1 << 16) | (1 << 24) | (1 << 32) | (1 << 40) | (1 << 48) |
+            # Right edge: (1,7)=15, (2,7)=23, (3,7)=31, (4,7)=39, (5,7)=47, (6,7)=55
+            (1 << 15) | (1 << 23) | (1 << 31) | (1 << 39) | (1 << 47) | (1 << 55)
+        )
 
     def _setup_center_mask(self):
         """
-        Set up center control position mask.
+        Set up center control position bitboard mask.
 
-        Center positions are the 4x4 area in the middle of the board (rows 3-6, cols 3-6).
+        Center positions are the 4x4 area in the middle of the board (rows 2-5, cols 2-5).
         Control of this area provides flexibility and positional advantage.
         """
-        # Center 4x4 area: rows 3-6, cols 3-6 (0-indexed: 2-5)
-        for row in range(2, 6):
-            for col in range(2, 6):
-                self.center_mask[row, col] = True
+        # Center 4x4 area: rows 2-5, cols 2-5 (0-indexed)
+        # Bit positions: (2,2)=18, (2,3)=19, (2,4)=20, (2,5)=21
+        #               (3,2)=26, (3,3)=27, (3,4)=28, (3,5)=29
+        #               (4,2)=34, (4,3)=35, (4,4)=36, (4,5)=37
+        #               (5,2)=42, (5,3)=43, (5,4)=44, (5,5)=45
+        self.center_mask = (
+            (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21) |
+            (1 << 26) | (1 << 27) | (1 << 28) | (1 << 29) |
+            (1 << 34) | (1 << 35) | (1 << 36) | (1 << 37) |
+            (1 << 42) | (1 << 43) | (1 << 44) | (1 << 45)
+        )
 
-    def evaluate(self, othello_position: OthelloPosition) -> float:
+    def evaluate(self, othello_position: BitboardOthelloPosition, action) -> float:
         """
-        Evaluate an Othello position using multi-factor heuristics.
+        Evaluate a BitboardOthelloPosition using optimized bitboard operations.
 
         This method implements a sophisticated evaluation system that considers
         multiple factors including stability, positional control, and tactical
         considerations. The evaluation adapts based on the game phase.
 
         Args:
-            othello_position (OthelloPosition): The position to evaluate
+            othello_position (BitboardOthelloPosition): The bitboard position to evaluate
 
         Returns:
             float: Evaluation score (positive favors current player)
@@ -182,224 +169,123 @@ class PrimaryEvaluator(OthelloEvaluator):
             "center_control": 2,  # Center control
         }
 
-        # heuristic data board for each feature
-        data = {
-            "squares": 0,
-            "corners": 0,
-            "x_squares": 0,
-            "c_squares": 0,
-            "middle_squares": 0,
-            "stable_discs": 0,
-            "frontier_squares": 0,
-            "mobility": 0,
-            "edge_squares": 0,
-            "center_control": 0,
-        }
+        # Get bitboards for current player and opponent
+        if othello_position.maxPlayer:
+            my_bitboard = othello_position.white_bitboard
+            opp_bitboard = othello_position.black_bitboard
+        else:
+            my_bitboard = othello_position.black_bitboard
+            opp_bitboard = othello_position.white_bitboard
 
-        # player score board for each feature
-        current_player = {key: 0 for key in data.keys()}
-        opponent = {key: 0 for key in data.keys()}
+        # Count pieces using bitboard operations
+        my_squares = bin(my_bitboard).count('1')
+        opp_squares = bin(opp_bitboard).count('1')
+        total_squares = my_squares + opp_squares
 
-        # player symbols
-        current_player_symbol = "W" if othello_position.maxPlayer else "B"
-        opponent_symbol = "B" if othello_position.maxPlayer else "W"
+        # Initialize heuristic scores
+        my_score = 0
+        opp_score = 0
 
-        heuristics = {current_player_symbol: current_player, opponent_symbol: opponent}
+        # Count different position types using bitboard operations
+        my_corners = bin(my_bitboard & self.corner_mask).count('1')
+        opp_corners = bin(opp_bitboard & self.corner_mask).count('1')
 
-        # compute mobility for current player
-        heuristics[current_player_symbol]["mobility"] = self.mobility(othello_position)
+        my_x_squares = bin(my_bitboard & self.x_square_mask).count('1')
+        opp_x_squares = bin(opp_bitboard & self.x_square_mask).count('1')
 
-        # compute mobility for opponent
+        my_c_squares = bin(my_bitboard & self.c_square_mask).count('1')
+        opp_c_squares = bin(opp_bitboard & self.c_square_mask).count('1')
+
+        my_edge_squares = bin(my_bitboard & self.edge_mask).count('1')
+        opp_edge_squares = bin(opp_bitboard & self.edge_mask).count('1')
+
+        my_center_squares = bin(my_bitboard & self.center_mask).count('1')
+        opp_center_squares = bin(opp_bitboard & self.center_mask).count('1')
+
+        # Calculate middle squares (not corners, edges, x_squares, c_squares, center)
+        special_positions_mask = (self.corner_mask | self.x_square_mask | 
+                                 self.c_square_mask | self.edge_mask | self.center_mask)
+        my_middle_squares = bin(my_bitboard & ~special_positions_mask).count('1')
+        opp_middle_squares = bin(opp_bitboard & ~special_positions_mask).count('1')
+
+        # Calculate mobility
+        my_mobility = len(othello_position.get_moves())
         temp_pos = othello_position.clone()
         temp_pos.maxPlayer = not othello_position.maxPlayer
-        heuristics[opponent_symbol]["mobility"] = self.mobility(temp_pos)
+        opp_mobility = len(temp_pos.get_moves())
 
-        # extract playable board area (8x8, convert to 0-based indexing)
-        playable_board = othello_position.board[1:9, 1:9]
+        # Calculate frontier squares (pieces adjacent to empty squares, excluding edges)
+        my_frontier = self._count_frontier_squares_bitboard(my_bitboard, othello_position.empty_bitboard)
+        opp_frontier = self._count_frontier_squares_bitboard(opp_bitboard, othello_position.empty_bitboard)
 
-        # boolean masks for each player
-        current_player_mask = playable_board == current_player_symbol
-        opponent_mask = playable_board == opponent_symbol
-        empty_mask = playable_board == EMPTY_PLACEHOLDER
+        # Calculate stable discs
+        my_stable = self._count_stable_discs_bitboard(my_bitboard, opp_bitboard)
+        opp_stable = self._count_stable_discs_bitboard(opp_bitboard, my_bitboard)
 
-        # count discs for each player
-        heuristics[current_player_symbol]["squares"] = np.sum(current_player_mask)
-        heuristics[opponent_symbol]["squares"] = np.sum(opponent_mask)
-        empty_squares = np.sum(empty_mask)
-
-        # pre-computed masks for position type counting
-        corner_mask_playable = self.corner_mask
-        x_square_mask_playable = self.x_square_mask
-        c_square_mask_playable = self.c_square_mask
-        edge_mask_playable = self.edge_mask
-        center_mask_playable = self.center_mask
-
-        # Count different position types using vectorized operations
-        heuristics[current_player_symbol]["corners"] = np.sum(
-            current_player_mask & corner_mask_playable
-        )
-        heuristics[opponent_symbol]["corners"] = np.sum(
-            opponent_mask & corner_mask_playable
-        )
-
-        heuristics[current_player_symbol]["x_squares"] = np.sum(
-            current_player_mask & x_square_mask_playable
-        )
-        heuristics[opponent_symbol]["x_squares"] = np.sum(
-            opponent_mask & x_square_mask_playable
-        )
-
-        heuristics[current_player_symbol]["c_squares"] = np.sum(
-            current_player_mask & c_square_mask_playable
-        )
-        heuristics[opponent_symbol]["c_squares"] = np.sum(
-            opponent_mask & c_square_mask_playable
-        )
-
-        heuristics[current_player_symbol]["edge_squares"] = np.sum(
-            current_player_mask & edge_mask_playable
-        )
-        heuristics[opponent_symbol]["edge_squares"] = np.sum(
-            opponent_mask & edge_mask_playable
-        )
-
-        # count center control
-        heuristics[current_player_symbol]["center_control"] = np.sum(
-            current_player_mask & center_mask_playable
-        )
-        heuristics[opponent_symbol]["center_control"] = np.sum(
-            opponent_mask & center_mask_playable
-        )
-
-        # count middle squares (not corners, edges, x_squares, c_squares, center)
-        middle_mask = ~(
-            corner_mask_playable
-            | x_square_mask_playable
-            | c_square_mask_playable
-            | edge_mask_playable
-            | center_mask_playable
-        )
-        heuristics[current_player_symbol]["middle_squares"] = np.sum(
-            current_player_mask & middle_mask
-        )
-        heuristics[opponent_symbol]["middle_squares"] = np.sum(
-            opponent_mask & middle_mask
-        )
-
-        # count frontier squares
-        frontier_current = self._count_frontier_squares_vectorized(
-            playable_board, current_player_mask, edge_mask_playable
-        )
-        frontier_opponent = self._count_frontier_squares_vectorized(
-            playable_board, opponent_mask, edge_mask_playable
-        )
-        heuristics[current_player_symbol]["frontier_squares"] = frontier_current
-        heuristics[opponent_symbol]["frontier_squares"] = frontier_opponent
-
-        # count stable discs
-        stable_current = self._count_stable_discs_vectorized(
-            playable_board, current_player_mask
-        )
-        stable_opponent = self._count_stable_discs_vectorized(
-            playable_board, opponent_mask
-        )
-        heuristics[current_player_symbol]["stable_discs"] = stable_current
-        heuristics[opponent_symbol]["stable_discs"] = stable_opponent
-
-        # determine game phase and apply appropriate heuristics
-        # total of 64 squares on the board, minus the empty squares
-        total_squares = 64 - empty_squares
-
+        # Determine game phase and apply appropriate heuristics
         if self.is_early_game(total_squares):
-            """
-            Early game strategy: Focus on mobility, center control, and avoiding traps.
-            Prioritize flexibility over immediate piece count.
-            """
-
-            heuristics_used = [
-                "corners",
-                "x_squares",
-                "c_squares",
-                "stable_discs",
-                "frontier_squares",
-                "mobility",
-                "edge_squares",
-                "center_control",
-            ]
-            current_player_score = sum(
-                weights[key] * heuristics[current_player_symbol][key]
-                for key in weights.keys()
-                if key in heuristics_used
+            # Early game strategy: Focus on mobility, center control, and avoiding traps
+            my_score = (
+                weights["corners"] * my_corners +
+                weights["x_squares"] * my_x_squares +
+                weights["c_squares"] * my_c_squares +
+                weights["stable_discs"] * my_stable +
+                weights["frontier_squares"] * my_frontier +
+                weights["mobility"] * my_mobility +
+                weights["edge_squares"] * my_edge_squares +
+                weights["center_control"] * my_center_squares
             )
-            opponent_score = sum(
-                weights[key] * heuristics[opponent_symbol][key]
-                for key in weights.keys()
-                if key in heuristics_used
+            opp_score = (
+                weights["corners"] * opp_corners +
+                weights["x_squares"] * opp_x_squares +
+                weights["c_squares"] * opp_c_squares +
+                weights["stable_discs"] * opp_stable +
+                weights["frontier_squares"] * opp_frontier +
+                weights["mobility"] * opp_mobility +
+                weights["edge_squares"] * opp_edge_squares +
+                weights["center_control"] * opp_center_squares
             )
-            return (
-                current_player_score * heuristics[current_player_symbol]["squares"]
-                - opponent_score * heuristics[opponent_symbol]["squares"]
-            )
+            return (my_score * my_squares) - (opp_score * opp_squares)
 
         elif self.is_mid_game(total_squares):
-            """
-            Mid game strategy: Balance all factors with emphasis on stability.
-            """
-            heuristics_used = [
-                "corners",
-                "x_squares",
-                "c_squares",
-                "stable_discs",
-                "frontier_squares",
-                # "middle_squares",
-                "mobility",
-                # "edge_squares",
-            ]
-            current_player_score = sum(
-                weights[key] * heuristics[current_player_symbol][key]
-                for key in weights.keys()
-                if key in heuristics_used
+            # Mid game strategy: Balance all factors with emphasis on stability
+            my_score = (
+                weights["corners"] * my_corners +
+                weights["x_squares"] * my_x_squares +
+                weights["c_squares"] * my_c_squares +
+                weights["stable_discs"] * my_stable +
+                weights["frontier_squares"] * my_frontier +
+                weights["mobility"] * my_mobility
             )
-            opponent_score = sum(
-                weights[key] * heuristics[opponent_symbol][key]
-                for key in weights.keys()
-                if key in heuristics_used
+            opp_score = (
+                weights["corners"] * opp_corners +
+                weights["x_squares"] * opp_x_squares +
+                weights["c_squares"] * opp_c_squares +
+                weights["stable_discs"] * opp_stable +
+                weights["frontier_squares"] * opp_frontier +
+                weights["mobility"] * opp_mobility
             )
-            return (
-                current_player_score * heuristics[current_player_symbol]["squares"]
-                - opponent_score * heuristics[opponent_symbol]["squares"]
-            )
+            return (my_score * my_squares) - (opp_score * opp_squares)
 
         else:
-            """
-            Late game strategy: Focus on piece count and stability.
-            Mobility and center control become less relevant.
-            """
-            heuristics_used = [
-                "corners",
-                "x_squares",
-                "c_squares",
-                "stable_discs",
-                "frontier_squares",
-                "middle_squares",
-                # "mobility",
-                # "edge_squares",
-                # "center_control",
-            ]
-            current_player_score = sum(
-                weights[key] * heuristics[current_player_symbol][key]
-                for key in weights.keys()
-                if key in heuristics_used and key != "squares"
+            # Late game strategy: Focus on piece count and stability
+            my_score = (
+                weights["corners"] * my_corners +
+                weights["x_squares"] * my_x_squares +
+                weights["c_squares"] * my_c_squares +
+                weights["stable_discs"] * my_stable +
+                weights["frontier_squares"] * my_frontier +
+                weights["squares"] * my_middle_squares
             )
-            opponent_score = sum(
-                weights[key] * heuristics[opponent_symbol][key]
-                for key in weights.keys()
-                if key in heuristics_used and key != "squares"
+            opp_score = (
+                weights["corners"] * opp_corners +
+                weights["x_squares"] * opp_x_squares +
+                weights["c_squares"] * opp_c_squares +
+                weights["stable_discs"] * opp_stable +
+                weights["frontier_squares"] * opp_frontier +
+                weights["squares"] * opp_middle_squares
             )
-            return (
-                current_player_score * heuristics[current_player_symbol]["squares"]
-                - opponent_score * heuristics[opponent_symbol]["squares"]
-            )
+            return (my_score * my_squares) - (opp_score * opp_squares)
 
     def is_early_game(self, total_squares):
         """
@@ -453,7 +339,9 @@ class PrimaryEvaluator(OthelloEvaluator):
 
         highly advantageous
         """
-        return self.corner_mask[row - 1, col - 1]
+        # Convert 1-indexed to 0-indexed and calculate bit position
+        bit_pos = (row - 1) * 8 + (col - 1)
+        return bool(self.corner_mask & (1 << bit_pos))
 
     def is_x_squares(self, row, col):
         """
@@ -464,7 +352,9 @@ class PrimaryEvaluator(OthelloEvaluator):
 
         highly dangerous
         """
-        return self.x_square_mask[row - 1, col - 1]
+        # Convert 1-indexed to 0-indexed and calculate bit position
+        bit_pos = (row - 1) * 8 + (col - 1)
+        return bool(self.x_square_mask & (1 << bit_pos))
 
     def is_c_squares(self, row, col):
         """
@@ -472,45 +362,56 @@ class PrimaryEvaluator(OthelloEvaluator):
         (1, 2), (2, 1), (7, 1), (8, 2), (8, 7), (8, 7), (1, 7), (2, 8)
         In early game, try to avoid them because you risk giving up a corner
         """
-        return self.c_square_mask[row - 1, col - 1]
+        # Convert 1-indexed to 0-indexed and calculate bit position
+        bit_pos = (row - 1) * 8 + (col - 1)
+        return bool(self.c_square_mask & (1 << bit_pos))
 
     def is_center_square(self, row, col):
         """
         Check if a position is in the center 4x4 area.
         Center squares: rows 3-6, cols 3-6 (1-indexed)
         """
-        return self.center_mask[row - 1, col - 1]
+        # Convert 1-indexed to 0-indexed and calculate bit position
+        bit_pos = (row - 1) * 8 + (col - 1)
+        return bool(self.center_mask & (1 << bit_pos))
 
     def is_middle_squares(self, row, col):
         """
         all squares that are not corners, edges, x squares and c squares
         """
+        # Convert 1-indexed to 0-indexed and calculate bit position
+        bit_pos = (row - 1) * 8 + (col - 1)
         return not (
-            self.corner_mask[row - 1, col - 1]
-            or self.x_square_mask[row - 1, col - 1]
-            or self.c_square_mask[row - 1, col - 1]
-            or self.edge_mask[row - 1, col - 1]
+            (self.corner_mask & (1 << bit_pos)) or
+            (self.x_square_mask & (1 << bit_pos)) or
+            (self.c_square_mask & (1 << bit_pos)) or
+            (self.edge_mask & (1 << bit_pos))
         )
 
-    def is_frontier_squares(self, row, col, board):
+    def is_frontier_squares(self, row, col, bitboard_position):
         """
-        squares that border with one or more empty squares
-        excluding edge squares
+        Check if a square borders with one or more empty squares, excluding edge squares.
+        Uses bitboard operations for efficiency.
         """
-
         if self.is_edge_squares(row, col):
             return False
-
+        
+        # Check all 8 directions for empty squares
         for dr, dc in self.DIRECTIONS:
-            if board[row + dr][col + dc] == EMPTY_PLACEHOLDER:
-                return True
+            new_row, new_col = row - 1 + dr, col - 1 + dc  # Convert to 0-indexed
+            if 0 <= new_row < 8 and 0 <= new_col < 8:
+                new_bit_pos = new_row * 8 + new_col
+                if bitboard_position.empty_bitboard & (1 << new_bit_pos):
+                    return True
         return False
 
     def is_edge_squares(self, row, col):
         """
         squares along the borders but not corners
         """
-        return self.edge_mask[row - 1, col - 1]
+        # Convert 1-indexed to 0-indexed and calculate bit position
+        bit_pos = (row - 1) * 8 + (col - 1)
+        return bool(self.edge_mask & (1 << bit_pos))
 
     def is_stable_discs(self, row, col, board):
         """
@@ -541,76 +442,94 @@ class PrimaryEvaluator(OthelloEvaluator):
 
         return True
 
-    def _count_frontier_squares_vectorized(
-        self, playable_board, player_mask, edge_mask
-    ):
+
+    def _count_frontier_squares_bitboard(self, player_bitboard, empty_bitboard):
         """
-        Vectorized frontier squares detection.
-        Frontier squares are squares that border with one or more empty squares, excluding edge squares.
+        Count frontier squares using bitboard operations.
+        Frontier squares are player pieces adjacent to empty squares, excluding edge pieces.
         """
         frontier_count = 0
-        empty_mask = playable_board == EMPTY_PLACEHOLDER
-
-        # Get positions of player pieces that are not on edges
-        player_positions = np.where(player_mask & ~edge_mask)
-
-        for i in range(len(player_positions[0])):
-            row, col = player_positions[0][i], player_positions[1][i]
-
+        
+        # Remove edge pieces from consideration
+        non_edge_player_pieces = player_bitboard & ~self.edge_mask
+        
+        # For each non-edge player piece, check if it's adjacent to an empty square
+        temp_pieces = non_edge_player_pieces
+        while temp_pieces:
+            # Get the rightmost set bit
+            piece_bit = temp_pieces & -temp_pieces
+            piece_pos = piece_bit.bit_length() - 1
+            
+            # Convert bit position to row, col
+            row, col = piece_pos // 8, piece_pos % 8
+            
             # Check all 8 directions for empty squares
+            is_frontier = False
             for dr, dc in self.DIRECTIONS:
                 new_row, new_col = row + dr, col + dc
-                if (
-                    0 <= new_row < 8
-                    and 0 <= new_col < 8
-                    and empty_mask[new_row, new_col]
-                ):
-                    frontier_count += 1
-                    break  # Found at least one empty neighbor, this is a frontier square
-
+                if 0 <= new_row < 8 and 0 <= new_col < 8:
+                    new_bit_pos = new_row * 8 + new_col
+                    if empty_bitboard & (1 << new_bit_pos):
+                        is_frontier = True
+                        break
+            
+            if is_frontier:
+                frontier_count += 1
+                
+            # Remove this piece from consideration
+            temp_pieces &= temp_pieces - 1
+            
         return frontier_count
 
-    def _count_stable_discs_vectorized(self, playable_board, player_mask):
+    def _count_stable_discs_bitboard(self, my_bitboard, opp_bitboard):
         """
-        Optimized stable discs detection.
+        Count stable discs using bitboard operations.
         A disc is stable if it cannot be flipped in any direction.
         """
         stable_count = 0
-        player_positions = np.where(player_mask)
-
-        for i in range(len(player_positions[0])):
-            row, col = player_positions[0][i], player_positions[1][i]
-            color = playable_board[row, col]
+        temp_pieces = my_bitboard
+        
+        while temp_pieces:
+            # Get the rightmost set bit
+            piece_bit = temp_pieces & -temp_pieces
+            piece_pos = piece_bit.bit_length() - 1
+            
+            # Convert bit position to row, col
+            row, col = piece_pos // 8, piece_pos % 8
+            
+            # Check if this piece is stable in all directions
             is_stable = True
-
-            # Check stability in all 8 directions
             for dr, dc in self.DIRECTIONS:
-                r, c = row, col
                 stable_in_direction = False
-
+                r, c = row, col
+                
                 # Walk along this direction until hitting the board boundary
                 while 0 <= r < 8 and 0 <= c < 8:
-                    if playable_board[r, c] != color:
-                        # Hit opponent or empty → not stable in this direction
+                    bit_pos = r * 8 + c
+                    # If we hit opponent or empty square, not stable in this direction
+                    if (opp_bitboard & (1 << bit_pos)) or not ((my_bitboard | opp_bitboard) & (1 << bit_pos)):
                         stable_in_direction = False
                         break
                     r += dr
                     c += dc
-
+                
                 # If we exited loop by crossing the board boundary → stable direction
                 if not (0 <= r < 8 and 0 <= c < 8):
                     stable_in_direction = True
-
+                
                 if not stable_in_direction:
                     is_stable = False
                     break
-
+            
             if is_stable:
                 stable_count += 1
-
+                
+            # Remove this piece from consideration
+            temp_pieces &= temp_pieces - 1
+            
         return stable_count
 
-    def mobility(self, position: OthelloPosition):
+    def mobility(self, position: BitboardOthelloPosition):
         """
         Calculate the mobility (number of legal moves) for the current player.
 
@@ -653,37 +572,38 @@ class PrimaryEvaluator(OthelloEvaluator):
         if action.is_pass_move:
             return float("-inf")
 
-        # Convert 1-indexed coordinates to 0-indexed for mask lookup
+        # Convert 1-indexed coordinates to 0-indexed and calculate bit position
         row_idx = action.row - 1
         col_idx = action.col - 1
+        bit_pos = row_idx * 8 + col_idx
 
         # Corner moves get highest priority
         # our heuristic focuses on stability, gaining a corner increases
         # your chances of getting more stable discs
-        if self.corner_mask[row_idx, col_idx]:
+        if self.corner_mask & (1 << bit_pos):
             return 1000
 
         # X squares get lowest priority
         # X squares increases the likelihood of losing a corner
         # Classified as the most dangerous squares
-        elif self.x_square_mask[row_idx, col_idx]:
+        elif self.x_square_mask & (1 << bit_pos):
             return -1000
 
-        # C squares get lowest priority
+        # C squares get low priority
         # C squares increases the likelihood of losing a corner
         # Classified as dangerous
-        elif self.c_square_mask[row_idx, col_idx]:
+        elif self.c_square_mask & (1 << bit_pos):
             return -500
 
         # Edge moves get medium priority
         # edges are not as stable as corners, but they are still advantageous
-        elif self.edge_mask[row_idx, col_idx]:
+        elif self.edge_mask & (1 << bit_pos):
             return 100
 
         # Center moves get lower priority
         # centers are not as stable as corners or edges, but they are still advantageous
         # and play a significant role in the early game
-        elif self.center_mask[row_idx, col_idx]:
+        elif self.center_mask & (1 << bit_pos):
             return 10
 
         # every other square gets the same priority

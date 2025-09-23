@@ -1,10 +1,9 @@
 import time
 from PrimaryEvaluator import PrimaryEvaluator
-from OthelloPosition import OthelloPosition
 from OthelloAlgorithm import OthelloAlgorithm
 from OthelloAction import OthelloAction
 import sys
-
+from BitboardOthelloPosition import BitboardOthelloPosition
 
 class StopSignal(Exception):
     """
@@ -53,6 +52,8 @@ class AlphaBeta(OthelloAlgorithm):
         self.search_depth = depth
         self.time_limit = None
         self.start_time = None
+        self.transposition_table = {}  # Transposition table for caching
+        self.nodes_searched = 0  # Counter for debugging
         sys.setrecursionlimit(5000)  # Increase recursion limit for deep searches
 
     def set_evaluator(self, othello_evaluator):
@@ -82,6 +83,74 @@ class AlphaBeta(OthelloAlgorithm):
         """
         self.start_time = time.time()
         self.time_limit = time_limit
+        # Don't clear transposition table - we want to reuse previous evaluations
+        self.nodes_searched = 0  # Reset node counter
+
+    def _get_position_key(self, pos: BitboardOthelloPosition) -> int:
+        """
+        Generate a unique key for a position (without depth) for transposition table.
+        This allows us to reuse evaluations from shallower depths.
+        
+        Args:
+            pos (BitboardOthelloPosition): The position
+            
+        Returns:
+            int: Unique key for the position
+        """
+        return hash((pos.white_bitboard, pos.black_bitboard, pos.maxPlayer))
+
+    def _lookup_transposition(self, pos: BitboardOthelloPosition, depth: int, alpha: float, beta: float):
+        """
+        Look up a position in the transposition table.
+        Can use evaluations from any depth >= current depth.
+        
+        Args:
+            pos (BitboardOthelloPosition): The position
+            depth (int): The search depth
+            alpha (float): Alpha bound
+            beta (float): Beta bound
+            
+        Returns:
+            tuple: (found, value, move) or (False, None, None)
+        """
+        key = self._get_position_key(pos)
+        if key in self.transposition_table:
+            entry = self.transposition_table[key]
+            value, move, entry_type, entry_depth = entry
+            
+            # Use this entry if it's from a search depth >= current depth
+            if entry_depth >= depth:
+                if entry_type == "exact":
+                    return True, value, move
+                elif entry_type == "lower" and value >= beta:
+                    return True, value, move
+                elif entry_type == "upper" and value <= alpha:
+                    return True, value, move
+        
+        return False, None, None
+
+    def _store_transposition(self, pos: BitboardOthelloPosition, depth: int, value: float, move, alpha: float, beta: float):
+        """
+        Store a position in the transposition table.
+        
+        Args:
+            pos (BitboardOthelloPosition): The position
+            depth (int): The search depth
+            value (float): The evaluation value
+            move: The best move
+            alpha (float): Alpha bound
+            beta (float): Beta bound
+        """
+        key = self._get_position_key(pos)
+        
+        if value <= alpha:
+            entry_type = "upper"
+        elif value >= beta:
+            entry_type = "lower"
+        else:
+            entry_type = "exact"
+            
+        self.transposition_table[key] = (value, move, entry_type, depth)
 
     def __force_stop_if_time_elapsed(self):
         """
@@ -99,8 +168,9 @@ class AlphaBeta(OthelloAlgorithm):
             and (time.time() - self.start_time) >= self.time_limit
         ):
             raise StopSignal()
+        
 
-    def evaluate(self, othello_position: OthelloPosition) -> OthelloAction:
+    def evaluate(self, othello_position: BitboardOthelloPosition) -> OthelloAction:
         """
         Evaluate the given position and return the best move.
         
@@ -113,10 +183,14 @@ class AlphaBeta(OthelloAlgorithm):
         Returns:
             OthelloAction: The best move found by the algorithm
         """
+
+        # root = Node(othello_position, self.search_depth, evaluator=self.evaluator, time_control=self.__force_stop_if_time_elapsed)
+        # return root.best_move
+
         return self.max_value(othello_position, float("-inf"), float("inf"), 0)
 
     def max_value(
-        self, pos: OthelloPosition, alpha: float, beta: float, depth: int
+        self, pos: BitboardOthelloPosition, alpha: float, beta: float, depth: int
     ) -> OthelloAction:
         """
         Maximize the score for the current player (MAX node).
@@ -134,21 +208,31 @@ class AlphaBeta(OthelloAlgorithm):
         Returns:
             OthelloAction: Best move for the current player
         """
-        # Check time limit before proceeding
-        self.__force_stop_if_time_elapsed()
+        # Check time limit before proceeding (less frequent for better performance)
+        if self.nodes_searched % 1000 == 0:  # Check every 1000 nodes
+            self.__force_stop_if_time_elapsed()
+        self.nodes_searched += 1
+
+        # Check transposition table
+        # found, value, move = self._lookup_transposition(pos, depth, alpha, beta)
+        # if found:
+        #     return move
+
         possible_moves = pos.get_moves()
 
         # Terminal condition: reached maximum depth
         if depth == self.search_depth:
-            val = self.evaluator.evaluate(pos)
+            val = self.evaluator.evaluate(pos, None)  # No action for leaf nodes
             # Create dummy action to carry evaluation value
             leaf = OthelloAction(0, 0, False)
             leaf.value = val
+            self._store_transposition(pos, depth, val, leaf, alpha, beta)
             return leaf
 
         # Initialize best value and action
         best_value = float("-inf")
         best_action = None
+        original_alpha = alpha
 
         # Handle case with no legal moves
         if not possible_moves:
@@ -163,7 +247,7 @@ class AlphaBeta(OthelloAlgorithm):
             self.__force_stop_if_time_elapsed()
             
             # Make move and evaluate resulting position
-            child_pos = pos.make_move(action)
+            child_pos, flip_count = pos.make_move(action)
             best_child_move = self.min_value(child_pos, alpha, beta, depth + 1)
             child_value = best_child_move.value
 
@@ -172,6 +256,7 @@ class AlphaBeta(OthelloAlgorithm):
                 best_value = child_value
                 best_action = action
                 best_action.value = child_value
+                best_action.discs_flipped = flip_count
 
             # Update alpha bound
             alpha = max(alpha, best_value)
@@ -180,10 +265,13 @@ class AlphaBeta(OthelloAlgorithm):
             if alpha >= beta:
                 break  # Beta cutoff
 
+        # Store in transposition table
+        self._store_transposition(pos, depth, best_value, best_action, original_alpha, beta)
+
         return best_action
 
     def min_value(
-        self, pos: OthelloPosition, alpha: float, beta: float, depth: int
+        self, pos: BitboardOthelloPosition, alpha: float, beta: float, depth: int
     ) -> OthelloAction:
         """
         Minimize the score for the opponent (MIN node).
@@ -202,23 +290,32 @@ class AlphaBeta(OthelloAlgorithm):
         Returns:
             OthelloAction: Best move for the opponent
         """
-        # Check time limit before proceeding
-        self.__force_stop_if_time_elapsed()
+        # Check time limit before proceeding (less frequent for better performance)
+        if self.nodes_searched % 1000 == 0:  # Check every 1000 nodes
+            self.__force_stop_if_time_elapsed()
+        self.nodes_searched += 1
+
+        # Check transposition table
+        # found, value, move = self._lookup_transposition(pos, depth, alpha, beta)
+        # if found:
+        #     return move
 
         # Get possible moves for opponent
         possible_moves = pos.get_moves()
 
         # Terminal condition: reached maximum depth
         if depth == self.search_depth:
-            val = self.evaluator.evaluate(pos)
+            val = self.evaluator.evaluate(pos, None)  # No action for leaf nodes
             # Create dummy action to carry evaluation value
             leaf = OthelloAction(0, 0, False)
             leaf.value = val
+            self._store_transposition(pos, depth, val, leaf, alpha, beta)
             return leaf
 
         # Initialize best value and action for MIN player
         best_value = float("inf")
         best_action = None
+        original_beta = beta
 
         # Handle case with no legal moves
         if not possible_moves:
@@ -232,7 +329,7 @@ class AlphaBeta(OthelloAlgorithm):
             self.__force_stop_if_time_elapsed()
 
             # Make move and evaluate resulting position
-            child_pos = pos.make_move(action)
+            child_pos, flip_count = pos.make_move(action)
             best_child_move = self.max_value(child_pos, alpha, beta, depth + 1)
             child_value = best_child_move.value
 
@@ -241,13 +338,16 @@ class AlphaBeta(OthelloAlgorithm):
                 best_value = child_value
                 best_action = action
                 best_action.value = child_value
-
+                best_action.discs_flipped = flip_count
             # Update beta bound
             beta = min(beta, best_value)
             
             # Alpha-beta pruning: stop if alpha >= beta
             if beta <= alpha:
                 break  # Alpha cutoff
+
+        # Store in transposition table
+        self._store_transposition(pos, depth, best_value, best_action, alpha, original_beta)
 
         return best_action
 

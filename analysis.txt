@@ -1,0 +1,5 @@
+without transposition, for each IDS, we go from 0 to 1, 0 to 2, 0 to 3
+But with it, we can always resume from the previous IDS, 0 to 1, 1 to 2, 2 to 3
+
+It was critical to sort the moves to guarantee that moves with the heights scores are first searched first
+This increases the chance of we finding the best path
