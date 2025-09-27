@@ -19,7 +19,7 @@ class OthelloAction(object):
         self.row = row
         self.col = col
         self.is_pass_move = is_pass_move
-        self.value = float("-inf")
+        self.value = 0
 
     def print_move(self):
         """
@@ -30,12 +30,13 @@ class OthelloAction(object):
             print("pass")
         else:
             print("(" + str(self.row) + "," + str(self.col) + ")")
-
+    
     def __str__(self):
+        """
+        Returns the move as a string in format (3,6) or pass
+        :return: String representation of the move
+        """
         if self.is_pass_move:
             return "pass"
         else:
-            return f"({self.row},{self.col})"
-    
-    def __repr__(self):
-        return self.__str__()
+            return "(" + str(self.row) + "," + str(self.col) + ")"

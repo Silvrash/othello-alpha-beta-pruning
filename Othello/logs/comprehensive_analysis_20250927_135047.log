@@ -1,0 +1,75 @@
+==========================================
+📊 COMPREHENSIVE ANALYSIS RESULTS
+==========================================
+Analysis generated on: Sat Sep 27 13:50:47 CEST 2025
+Time limits tested: 1 2 3 4 5 6 7 8 9 10
+Configurations run:
+  - AI as White vs Naive Player
+  - AI as Black vs Naive Player
+
+
+
+📊 DEPTH ANALYSIS TABLE
+════════════════════════════════════════════════════════════
+┌─────────┬─────────────┬─────────────────────────┬─────────────┐
+│ Color   │ Time limit  │ Result                  │ Avg Depth   │
+├─────────┼─────────────┼─────────────────────────┼─────────────┤
+│ White   │ 1s          │ White won with 46       │ 20          │
+│ Black   │ 1s          │ Black won with 10       │ 17          │
+│ White   │ 2s          │ White won with 44       │ 29          │
+│ Black   │ 2s          │ Black won with 60       │ 38          │
+│ White   │ 3s          │ White won with 64       │ 44          │
+│ Black   │ 3s          │ Black won with 56       │ 43          │
+│ White   │ 4s          │ White won with 56       │ 49          │
+│ Black   │ 4s          │ Black won with 62       │ 51          │
+│ White   │ 5s          │ White won with 64       │ 56          │
+│ Black   │ 5s          │ Black won with 63       │ 46          │
+│ White   │ 6s          │ White won with 64       │ 59          │
+│ Black   │ 6s          │ Black won with 63       │ 49          │
+│ White   │ 7s          │ White won with 64       │ 63          │
+│ Black   │ 7s          │ Black won with 63       │ 53          │
+│ White   │ 8s          │ White won with 64       │ 67          │
+│ Black   │ 8s          │ Black won with 52       │ 70          │
+│ White   │ 9s          │ White won with 64       │ 72          │
+│ Black   │ 9s          │ Black won with 52       │ 74          │
+│ White   │ 10s         │ White won with 64       │ 75          │
+│ Black   │ 10s         │ Black won with 52       │ 77          │
+└─────────┴─────────────┴─────────────────────────┴─────────────┘
+
+
+📈 SUMMARY STATISTICS
+════════════════════════════════════════════════════════════
+White Win Rate: 10/10 (100%)
+Black Win Rate: 10/10 (100%)
+White Average Depth: 54
+Black Average Depth: 52
+Best White Performance: 64 points at 3s
+Best Black Performance: 63 points at 5s
+
+📁 LOG FILES SAVED IN: ../logs/
+════════════════════════════════════════════════════════════
+
+DETAILED GAME RESULTS:
+════════════════════════════════════════════════════════════
+AI as White (1s): White won with 46 points
+AI as Black (1s): Black won with 10 points
+AI as White (2s): White won with 44 points
+AI as Black (2s): Black won with 60 points
+AI as White (3s): White won with 64 points
+AI as Black (3s): Black won with 56 points
+AI as White (4s): White won with 56 points
+AI as Black (4s): Black won with 62 points
+AI as White (5s): White won with 64 points
+AI as Black (5s): Black won with 63 points
+AI as White (6s): White won with 64 points
+AI as Black (6s): Black won with 63 points
+AI as White (7s): White won with 64 points
+AI as Black (7s): Black won with 63 points
+AI as White (8s): White won with 64 points
+AI as Black (8s): Black won with 52 points
+AI as White (9s): White won with 64 points
+AI as Black (9s): Black won with 52 points
+AI as White (10s): White won with 64 points
+AI as Black (10s): Black won with 52 points
+
+Analysis completed at: Sat Sep 27 13:50:48 CEST 2025
