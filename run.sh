@@ -273,13 +273,13 @@ done
 ANALYSIS_LOG="../logs/comprehensive_analysis_$(date +%Y%m%d_%H%M%S).log"
 
 echo "=========================================="
-echo "📊 COMPREHENSIVE ANALYSIS RESULTS"
+echo "COMPREHENSIVE ANALYSIS RESULTS"
 echo "=========================================="
 
 # Start logging to analysis file
 {
     echo "=========================================="
-    echo "📊 COMPREHENSIVE ANALYSIS RESULTS"
+    echo "COMPREHENSIVE ANALYSIS RESULTS"
     echo "=========================================="
     echo "Analysis generated on: $(date)"
     echo "Time limits tested: ${TIME_LIMITS[*]}"
@@ -383,7 +383,7 @@ calculate_average_depth() {
         return
     fi
     
-    # Calculate average (integer division)
+    # Calculate average
     echo $((sum / count))
 }
 
@@ -591,7 +591,7 @@ done
 
 {
     echo ""
-    echo "📈 SUMMARY STATISTICS"
+    echo "SUMMARY STATISTICS"
     echo "════════════════════════════════════════════════════════════"
     echo "White Win Rate: $white_win_rate ($white_percentage%)"
     echo "Black Win Rate: $black_win_rate ($black_percentage%)"
@@ -607,7 +607,7 @@ done
     fi
 
     echo ""
-    echo "📁 LOG FILES SAVED IN: ../logs/"
+    echo "LOG FILES SAVED IN: ../logs/"
     echo "════════════════════════════════════════════════════════════"
     echo ""
     echo "DETAILED GAME RESULTS:"
@@ -620,5 +620,5 @@ done
 } | tee -a "$ANALYSIS_LOG"
 
 echo ""
-echo "📁 COMPREHENSIVE ANALYSIS SAVED TO: $ANALYSIS_LOG"
+echo "COMPREHENSIVE ANALYSIS SAVED TO: $ANALYSIS_LOG"
 echo "════════════════════════════════════════════════════════════"
