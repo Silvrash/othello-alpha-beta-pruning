@@ -1,0 +1,5 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+./othello.sh\PYG{+w}{ }\PYGZlt{}position\PYGZus{}string\PYGZgt{}\PYG{+w}{ }\PYGZlt{}time\PYGZus{}limit\PYGZus{}seconds\PYGZgt{}\PYG{+w}{ }\PYGZlt{}do\PYGZus{}compile\PYGZgt{}
+\PYG{c+c1}{\PYGZsh{} Example:}
+./othello.sh\PYG{+w}{ }WEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\PYG{+w}{ }\PYG{l+m}{5}\PYG{+w}{ }\PYG{l+m}{0}
+\end{MintedVerbatim}

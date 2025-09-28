@@ -47,11 +47,11 @@ class HeuristicEvaluator(OthelloEvaluator):
 
     """
 
-    def __init__(self, root_is_white: bool) -> None:
-        self.feature_extractor = FeatureExtractor(root_is_white)
+    def __init__(self, playing_white: bool) -> None:
+        self.feature_extractor = FeatureExtractor(playing_white)
         self.weights: Optional[np.ndarray] = None
         self.bias: float = 0.0
-        self.root_is_white: bool = root_is_white
+        self.playing_white: bool = playing_white
 
         self._initialize_default_weights()
 
@@ -96,8 +96,8 @@ class HeuristicEvaluator(OthelloEvaluator):
         
         This method extracts 10 strategic features from the given position
         and computes a weighted linear combination to produce the final
-        evaluation score. Positive scores favor the root player (white if
-        root_is_white=True), while negative scores favor the opponent.
+        evaluation score. Positive scores favor the starting player (white if
+        playing_white=True), while negative scores favor the opponent.
         
         Args:
             othello_position (OthelloPosition): The board position to evaluate.
@@ -105,7 +105,7 @@ class HeuristicEvaluator(OthelloEvaluator):
         
         Returns:
             float: Evaluation score where:
-                   - Positive values favor the root player
+                   - Positive values favor the starting player
                    - Negative values favor the opponent
                    - Magnitude indicates strength of advantage
         """

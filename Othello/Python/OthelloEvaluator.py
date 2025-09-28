@@ -36,7 +36,7 @@ class OthelloEvaluator(ABC):
         4. Regular moves (1) - Neutral
         5. C-square moves (-500) - Dangerous
         6. X-square moves (-1000) - Most dangerous
-        7. Pass moves (-∞) - Only when forced
+        7. Pass moves (-inf) - Only when forced
 
         Args:
             action (OthelloAction): The move to evaluate

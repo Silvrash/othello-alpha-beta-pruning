@@ -10,7 +10,7 @@ class FeatureExtractor:
     Our features are based on established Othello game play principles and are optimized for use
     with numpy arrays for efficient computation.
 
-    All features are calculated from the perspective of the root player.
+    All features are calculated from the perspective of the starting player.
     We use zero-indexed arrays for optimization purposes.
 
     We used numpy for fast arithmetic operations
@@ -31,22 +31,22 @@ class FeatureExtractor:
     Author: Afrasah Benjamin Arko
     """
 
-    def __init__(self, root_is_white: bool):
+    def __init__(self, playing_white: bool):
         """
         Initialize the FeatureExtractor with strategic square positions and weights.
 
         Args:
-            root_is_white (bool): Determines the perspective for our calculations (True for white, False for black).
+            playing_white (bool): Determines the perspective for our calculations (True for white, False for black).
 
         Attributes:
-            root_is_white (bool): The root player's color (True for white, False for black).
+            playing_white (bool): The starting player's color (True for white, False for black).
             corner_positions (np.ndarray): Corner positions on the board (1, 1), (1, 8), (8, 1), (8, 8).
             x_square_positions (np.ndarray): X-square positions, the diagonal squares next to corners.
             c_square_positions (np.ndarray): C-square positions, squares directly beside the corners.
             edge_positions (np.ndarray): Edge positions, squares along the borders but excluding corners.
             feature_names (list): List of feature names for interpretability
         """
-        self.root_is_white = root_is_white
+        self.playing_white = playing_white
 
         # Corners (most valuable squares)
         self.corner_positions = np.array([[0, 0], [0, 7], [7, 0], [7, 7]])
@@ -100,7 +100,7 @@ class FeatureExtractor:
         Extract a comprehensive feature vector from an Othello position for evaluation.
 
         This method computes 10 different features that capture various strategic aspects
-        of the current board position from the perspective of the root player.
+        of the current board position from the perspective of the starting player.
 
         Args:
             position (OthelloPosition): The current Othello game position to analyze
@@ -119,8 +119,8 @@ class FeatureExtractor:
                 [9] potential_mobility_diff: Difference in potential mobility
 
         Note:
-            All differences are calculated from the root player's perspective.
-            Positive values generally favor the root player.
+            All differences are calculated from the starting player's perspective.
+            Positive values generally favor the starting player.
         """
 
         features = []
@@ -129,8 +129,8 @@ class FeatureExtractor:
         board = position.board[1:9, 1:9].copy()
 
         # Piece types for current player and opponent
-        my_piece = "W" if self.root_is_white else "B"
-        opp_piece = "B" if self.root_is_white else "W"
+        my_piece = "W" if self.playing_white else "B"
+        opp_piece = "B" if self.playing_white else "W"
 
         # Boolean masks for piece counting
         my_mask = board == my_piece
@@ -155,12 +155,12 @@ class FeatureExtractor:
         opponent.maxPlayer = not position.maxPlayer
         opp_mobility = len(opponent.get_moves())
 
-        # Calculate mobility difference from root player's perspective
-        if (self.root_is_white and position.maxPlayer) or (not self.root_is_white and not position.maxPlayer):
-            # Root player is the current player
+        # Calculate mobility difference from starting player's perspective
+        if (self.playing_white and position.maxPlayer) or (not self.playing_white and not position.maxPlayer):
+            # Starting player is the current player
             mobility_diff = my_mobility - opp_mobility
         else:
-            # Root player is the opponent
+            # Starting player is the opponent
             mobility_diff = opp_mobility - my_mobility
             
         features.append(mobility_diff)

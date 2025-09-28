@@ -327,20 +327,61 @@ extract_depths_from_log() {
     echo "${depths[*]}"
 }
 
-# Function to calculate average depth
+# Function to extract mobility phase depth information from log files (moves 10-40)
+extract_mobility_depths_from_log() {
+    local log_file="$1"
+    local depths=()
+    local move_count=0
+    
+    if [ -f "$log_file" ]; then
+        # Split content by "to move" to identify moves
+        local content=$(cat "$log_file")
+        local moves=($(echo "$content" | grep -n "to move" | cut -d: -f1))
+        
+        # Process each move section
+        for i in "${!moves[@]}"; do
+            move_count=$((move_count + 1))
+            
+            # Only process moves in the mobility phase (10-40)
+            if [ $move_count -ge 10 ] && [ $move_count -le 40 ]; then
+                # Get the line number for this move
+                local line_num=${moves[$i]}
+                
+                # Look for depth information in the next few lines after this move
+                local depth_line=$(sed -n "${line_num},$((line_num + 10))p" "$log_file" | grep "Depth reached:" | head -1)
+                if [[ "$depth_line" =~ "Depth reached: "([0-9]+) ]]; then
+                    local depth=${BASH_REMATCH[1]}
+                    # Only include depths from 1 to 10 (matching calculate_average_depth logic)
+                    if [ "$depth" -ge 1 ] && [ "$depth" -le 10 ]; then
+                        depths+=($depth)
+                    fi
+                fi
+            fi
+        done
+    fi
+    
+    # Return depths as space-separated string
+    echo "${depths[*]}"
+}
+
+# Function to calculate average depth (only depths 1-10)
 calculate_average_depth() {
     local depths=("$@")
     local sum=0
-    local count=${#depths[@]}
+    local count=0
+    
+    for depth in "${depths[@]}"; do
+        # Only include depths from 1 to 10
+        if [ "$depth" -ge 1 ] && [ "$depth" -le 10 ]; then
+            sum=$((sum + depth))
+            count=$((count + 1))
+        fi
+    done
     
     if [ $count -eq 0 ]; then
         echo "0"
         return
     fi
-    
-    for depth in "${depths[@]}"; do
-        sum=$((sum + depth))
-    done
     
     # Calculate average (integer division)
     echo $((sum / count))
@@ -428,9 +469,9 @@ fi
     echo ""
     echo "📊 DEPTH ANALYSIS TABLE"
     echo "════════════════════════════════════════════════════════════"
-    echo "┌─────────┬─────────────┬─────────────────────────┬─────────────┐"
-    echo "│ Color   │ Time limit  │ Result                  │ Avg Depth   │"
-    echo "├─────────┼─────────────┼─────────────────────────┼─────────────┤"
+    echo "┌─────────┬─────────────┬─────────────────────────┬─────────────────────┬─────────────────┬─────────────┐"
+    echo "│ Color   │ Time limit  │ Result                  │ Avg Depth (10-40)   │ Moves (10-40)   │ Depth Range │"
+    echo "├─────────┼─────────────┼─────────────────────────┼─────────────────────┼─────────────────┼─────────────┤"
 } | tee -a "$ANALYSIS_LOG"
 
 # Generate depth analysis table rows
@@ -438,7 +479,9 @@ for time_limit in "${TIME_LIMITS[@]}"; do
     # Process White results
     if [ "$RUN_WHITE" = true ]; then
         white_result=""
-        white_depth=""
+        white_mobility_depth=""
+        white_mobility_moves=""
+        white_depth_range=""
         
         # Find white result for this time limit
         for result in "${RESULTS[@]}"; do
@@ -452,23 +495,47 @@ for time_limit in "${TIME_LIMITS[@]}"; do
             fi
         done
         
-        # Calculate white average depth for this time limit
+        # Calculate white mobility phase depth for this time limit
         white_log="../logs/${time_limit}s_white.log"
         if [ -f "$white_log" ]; then
-            depths_string=$(extract_depths_from_log "$white_log")
-            if [ -n "$depths_string" ]; then
-                read -ra depths_array <<< "$depths_string"
-                white_depth=$(calculate_average_depth "${depths_array[@]}")
+            mobility_depths_string=$(extract_mobility_depths_from_log "$white_log")
+            if [ -n "$mobility_depths_string" ]; then
+                read -ra mobility_depths_array <<< "$mobility_depths_string"
+                white_mobility_depth=$(calculate_average_depth "${mobility_depths_array[@]}")
+                white_mobility_moves=${#mobility_depths_array[@]}
+                
+                # Calculate depth range
+                if [ ${#mobility_depths_array[@]} -gt 0 ]; then
+                    min_depth=${mobility_depths_array[0]}
+                    max_depth=${mobility_depths_array[0]}
+                    for depth in "${mobility_depths_array[@]}"; do
+                        if [ "$depth" -lt "$min_depth" ]; then
+                            min_depth=$depth
+                        fi
+                        if [ "$depth" -gt "$max_depth" ]; then
+                            max_depth=$depth
+                        fi
+                    done
+                    white_depth_range="${min_depth}-${max_depth}"
+                else
+                    white_depth_range="N/A"
+                fi
+            else
+                white_mobility_depth="0"
+                white_mobility_moves="0"
+                white_depth_range="N/A"
             fi
         fi
         
-        printf "│ %-7s │ %-11s │ %-23s │ %-11s │\n" "White" "${time_limit}s" "$white_result" "$white_depth"
+        printf "│ %-7s │ %-11s │ %-23s │ %-19s │ %-15s │ %-11s │\n" "White" "${time_limit}s" "$white_result" "$white_mobility_depth" "$white_mobility_moves" "$white_depth_range"
     fi
     
     # Process Black results
     if [ "$RUN_BLACK" = true ]; then
         black_result=""
-        black_depth=""
+        black_mobility_depth=""
+        black_mobility_moves=""
+        black_depth_range=""
         
         # Find black result for this time limit
         for result in "${RESULTS[@]}"; do
@@ -482,22 +549,44 @@ for time_limit in "${TIME_LIMITS[@]}"; do
             fi
         done
         
-        # Calculate black average depth for this time limit
+        # Calculate black mobility phase depth for this time limit
         black_log="../logs/${time_limit}s_black.log"
         if [ -f "$black_log" ]; then
-            depths_string=$(extract_depths_from_log "$black_log")
-            if [ -n "$depths_string" ]; then
-                read -ra depths_array <<< "$depths_string"
-                black_depth=$(calculate_average_depth "${depths_array[@]}")
+            mobility_depths_string=$(extract_mobility_depths_from_log "$black_log")
+            if [ -n "$mobility_depths_string" ]; then
+                read -ra mobility_depths_array <<< "$mobility_depths_string"
+                black_mobility_depth=$(calculate_average_depth "${mobility_depths_array[@]}")
+                black_mobility_moves=${#mobility_depths_array[@]}
+                
+                # Calculate depth range
+                if [ ${#mobility_depths_array[@]} -gt 0 ]; then
+                    min_depth=${mobility_depths_array[0]}
+                    max_depth=${mobility_depths_array[0]}
+                    for depth in "${mobility_depths_array[@]}"; do
+                        if [ "$depth" -lt "$min_depth" ]; then
+                            min_depth=$depth
+                        fi
+                        if [ "$depth" -gt "$max_depth" ]; then
+                            max_depth=$depth
+                        fi
+                    done
+                    black_depth_range="${min_depth}-${max_depth}"
+                else
+                    black_depth_range="N/A"
+                fi
+            else
+                black_mobility_depth="0"
+                black_mobility_moves="0"
+                black_depth_range="N/A"
             fi
         fi
         
-        printf "│ %-7s │ %-11s │ %-23s │ %-11s │\n" "Black" "${time_limit}s" "$black_result" "$black_depth"
+        printf "│ %-7s │ %-11s │ %-23s │ %-19s │ %-15s │ %-11s │\n" "Black" "${time_limit}s" "$black_result" "$black_mobility_depth" "$black_mobility_moves" "$black_depth_range"
     fi
 done
 
 {
-    echo "└─────────┴─────────────┴─────────────────────────┴─────────────┘"
+    echo "└─────────┴─────────────┴─────────────────────────┴─────────────────────┴─────────────────┴─────────────┘"
 } | tee -a "$ANALYSIS_LOG"
 
 {

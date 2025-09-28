@@ -1,0 +1,69 @@
+==========================================
+📊 COMPREHENSIVE ANALYSIS RESULTS
+==========================================
+Analysis generated on: Sun Sep 28 01:38:15 CEST 2025
+Time limits tested: 2 3 4 5 6 7 8 9 10
+Configurations run:
+  - AI as White vs Naive Player
+  - AI as Black vs Naive Player
+
+
+📊 DEPTH ANALYSIS TABLE
+════════════════════════════════════════════════════════════
+┌─────────┬─────────────┬─────────────────────────┬─────────────────────┬─────────────────┬─────────────┐
+│ Color   │ Time limit  │ Result                  │ Avg Depth (10-40)   │ Moves (10-40)   │ Depth Range │
+├─────────┼─────────────┼─────────────────────────┼─────────────────────┼─────────────────┼─────────────┤
+│ Black   │ 10s         │ Black won with 52       │ 5                   │ 16              │ 4-8         │
+│ White   │ 10s         │ White won with 64       │ 6                   │ 15              │ 6-7         │
+│ Black   │ 2s          │ Black won with 60       │ 4                   │ 16              │ 4-6         │
+│ White   │ 2s          │ White won with 44       │ 4                   │ 15              │ 4-5         │
+│ Black   │ 3s          │ Black won with 40       │ 5                   │ 16              │ 4-6         │
+│ White   │ 3s          │ White won with 64       │ 5                   │ 15              │ 4-6         │
+│ Black   │ 4s          │ Black won with 62       │ 5                   │ 16              │ 5-6         │
+│ White   │ 4s          │ White won with 56       │ 5                   │ 15              │ 5-6         │
+│ Black   │ 5s          │ Black won with 63       │ 5                   │ 16              │ 5-6         │
+│ White   │ 5s          │ White won with 64       │ 5                   │ 15              │ 5-6         │
+│ Black   │ 6s          │ Black won with 63       │ 5                   │ 16              │ 5-7         │
+│ White   │ 6s          │ White won with 64       │ 5                   │ 15              │ 5-6         │
+│ Black   │ 7s          │ Black won with 63       │ 5                   │ 16              │ 5-7         │
+│ White   │ 7s          │ White won with 64       │ 5                   │ 15              │ 5-6         │
+│ Black   │ 8s          │ Black won with 63       │ 5                   │ 16              │ 5-7         │
+│ White   │ 8s          │ White won with 64       │ 5                   │ 15              │ 5-6         │
+│ Black   │ 9s          │ Black won with 52       │ 5                   │ 16              │ 4-7         │
+│ White   │ 9s          │ White won with 64       │ 6                   │ 15              │ 6-6         │
+└─────────┴─────────────┴─────────────────────────┴─────────────────────┴─────────────────┴─────────────┘────────┴─────────────────┴─────────────┘────────┴─────────────────┴─────────────┘
+
+📈 SUMMARY STATISTICS
+════════════════════════════════════════════════════════════
+White Win Rate: 9/9 (100%)
+Black Win Rate: 9/9 (100%)
+White Average Depth: 6
+Black Average Depth: 6
+Best White Performance: 64 points at 3s
+Best Black Performance: 63 points at 5s
+
+📁 LOG FILES SAVED IN: ../logs/
+════════════════════════════════════════════════════════════
+
+DETAILED GAME RESULTS:
+════════════════════════════════════════════════════════════
+AI as White (2s): White won with 44 points
+AI as Black (2s): Black won with 60 points
+AI as White (3s): White won with 64 points
+AI as Black (3s): Black won with 40 points
+AI as White (4s): White won with 56 points
+AI as Black (4s): Black won with 62 points
+AI as White (5s): White won with 64 points
+AI as Black (5s): Black won with 63 points
+AI as White (6s): White won with 64 points
+AI as Black (6s): Black won with 63 points
+AI as White (7s): White won with 64 points
+AI as Black (7s): Black won with 63 points
+AI as White (8s): White won with 64 points
+AI as Black (8s): Black won with 63 points
+AI as White (9s): White won with 64 points
+AI as Black (9s): Black won with 52 points
+AI as White (10s): White won with 64 points
+AI as Black (10s): Black won with 52 points
+
+Analysis completed at: Sun Sep 28 01:38:16 CEST 2025

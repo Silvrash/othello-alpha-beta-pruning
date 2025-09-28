@@ -79,7 +79,7 @@ class Othello(object):
     move.print_move()
 
     if not move.is_pass_move:
-        print(f"Depth reached: {depth_reached}")
+        print(f"Depth reached: {depth_reached}, Nodes searched: {algorithm.nodes_searched}")
 
     end = time.time()
     # print(end - start) # Only for debugging, print nothing but the move in the final version

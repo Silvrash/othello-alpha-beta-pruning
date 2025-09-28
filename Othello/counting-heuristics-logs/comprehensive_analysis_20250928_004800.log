@@ -1,0 +1,77 @@
+==========================================
+📊 COMPREHENSIVE ANALYSIS RESULTS
+==========================================
+Analysis generated on: Sun Sep 28 00:48:00 CEST 2025
+Time limits tested: 0.5 1 2 3 4 5 6 7 8 9 10
+Configurations run:
+  - AI as White vs Naive Player
+  - AI as Black vs Naive Player
+
+
+📊 DEPTH ANALYSIS TABLE
+════════════════════════════════════════════════════════════
+┌─────────┬─────────────┬─────────────────────────┬─────────────────────┬─────────────────┬─────────────┐
+│ Color   │ Time limit  │ Result                  │ Avg Depth (10-40)   │ Moves (10-40)   │ Depth Range │
+├─────────┼─────────────┼─────────────────────────┼─────────────────────┼─────────────────┼─────────────┤
+│ Black   │ 0.5s        │ White won with 42       │ 3                   │ 16              │ 3-4         │
+│ White   │ 0.5s        │ White won with 12       │ 4                   │ 15              │ 4-6         │
+│ Black   │ 10s         │ Black won with 0        │ 6                   │ 16              │ 6-7         │
+│ White   │ 10s         │ White won with 22       │ 6                   │ 15              │ 6-8         │
+│ Black   │ 1s          │ White won with 10       │ 5                   │ 16              │ 5-6         │
+│ White   │ 1s          │ Black won with 36       │ 5                   │ 15              │ 4-7         │
+│ Black   │ 2s          │ Black won with 42       │ 5                   │ 16              │ 5-6         │
+│ White   │ 2s          │ Black won with 38       │ 6                   │ 12              │ 5-7         │
+│ Black   │ 3s          │ White won with 12       │ 5                   │ 16              │ 5-7         │
+│ White   │ 3s          │ Black won with 46       │ 6                   │ 15              │ 5-8         │
+│ Black   │ 4s          │ White won with 26       │ 5                   │ 16              │ 5-7         │
+│ White   │ 4s          │ Black won with 30       │ 7                   │ 15              │ 6-9         │
+│ Black   │ 5s          │ White won with 40       │ 6                   │ 16              │ 6-7         │
+│ White   │ 5s          │ White won with 38       │ 6                   │ 15              │ 5-7         │
+│ Black   │ 6s          │ Black won with 8        │ 6                   │ 16              │ 6-7         │
+│ White   │ 6s          │ Black won with 0        │ 6                   │ 15              │ 6-8         │
+│ Black   │ 7s          │ Black won with 22       │ 6                   │ 16              │ 6-7         │
+│ White   │ 7s          │ White won with 10       │ 6                   │ 15              │ 6-7         │
+│ Black   │ 8s          │ Black won with 12       │ 6                   │ 16              │ 6-8         │
+│ White   │ 8s          │ White won with 4        │ 6                   │ 15              │ 6-7         │
+│ Black   │ 9s          │ White won with 4        │ 6                   │ 16              │ 6-7         │
+│ White   │ 9s          │ White won with 24       │ 6                   │ 15              │ 6-8         │
+└─────────┴─────────────┴─────────────────────────┴─────────────────────┴─────────────────┴─────────────┘────────┴─────────────────┴─────────────┘────────┴─────────────────┴─────────────┘
+
+📈 SUMMARY STATISTICS
+════════════════════════════════════════════════════════════
+White Win Rate: 6/11 (54%)
+Black Win Rate: 5/11 (45%)
+White Average Depth: 6
+Black Average Depth: 6
+Best White Performance: 38 points at 5s
+Best Black Performance: 42 points at 2s
+
+📁 LOG FILES SAVED IN: ../logs/
+════════════════════════════════════════════════════════════
+
+DETAILED GAME RESULTS:
+════════════════════════════════════════════════════════════
+AI as White (0.5s): White won with 12 points
+AI as Black (0.5s): White won with 42 points
+AI as White (1s): Black won with 36 points
+AI as Black (1s): White won with 10 points
+AI as White (2s): Black won with 38 points
+AI as Black (2s): Black won with 42 points
+AI as White (3s): Black won with 46 points
+AI as Black (3s): White won with 12 points
+AI as White (4s): Black won with 30 points
+AI as Black (4s): White won with 26 points
+AI as White (5s): White won with 38 points
+AI as Black (5s): White won with 40 points
+AI as White (6s): Black won with 0 points
+AI as Black (6s): Black won with 8 points
+AI as White (7s): White won with 10 points
+AI as Black (7s): Black won with 22 points
+AI as White (8s): White won with 4 points
+AI as Black (8s): Black won with 12 points
+AI as White (9s): White won with 24 points
+AI as Black (9s): White won with 4 points
+AI as White (10s): White won with 22 points
+AI as Black (10s): Black won with 0 points
+
+Analysis completed at: Sun Sep 28 00:48:01 CEST 2025
